@@ -124,6 +124,7 @@ function bindChoiceGroups() {
       } else {
         state.choices[key] = state.choices[key] === value ? "" : value;
       }
+      if (key === "neckAdj") normalizeNeckSetup();
       renderChoices();
       scheduleAutosave();
     });
@@ -140,6 +141,15 @@ function normalizeXrayChoices(changedValue) {
   }
   if (regionChoices.some((item) => values.has(item))) values.add("Out");
   state.choices.xrayRecommend = Array.from(values);
+}
+
+function normalizeNeckSetup() {
+  if (state.choices.neckAdj === "Y") {
+    const current = Array.isArray(state.choices.neckSetup) ? state.choices.neckSetup : [];
+    state.choices.neckSetup = current.length ? current : ["Sup"];
+    return;
+  }
+  delete state.choices.neckSetup;
 }
 
 function renderChoices() {
@@ -165,6 +175,7 @@ function selectedIncludes(key, value) {
 function renderConditionalFields() {
   $("#exerciseOtherWrap").hidden = !selectedIncludes("exercise", "Other");
   $("#xrayOtherWrap").hidden = !selectedIncludes("xrayRecommend", "Other");
+  $("#neckSetupWrap").hidden = state.choices.neckAdj !== "Y";
   $("#rmtWhoWrap").hidden = state.choices.rmt !== "Y";
   $("#acuWhoWrap").hidden = state.choices.acu !== "Y";
 }
@@ -252,7 +263,7 @@ function buildSummary() {
     ...linesForFields(fields, [["Contraindications/details", "contraindications"]]),
     `Subluxations to correct: ${choiceText("subluxationPattern")}`,
     `Neck adjustment: ${choiceText("neckAdj")}`,
-    `Neck setup: ${choiceText("neckSetup")}`,
+    `Neck setup: ${state.choices.neckAdj === "Y" ? choiceText("neckSetup") : "Not applicable"}`,
     `Click ok: ${choiceText("clickOk")}`,
     `Care model: ${choiceText("careModel")}`,
     `Lifetime adjustment: ${choiceText("lifetimeAdj")}`,
@@ -419,6 +430,7 @@ function loadInitialRecord(record) {
     if (field) field.value = value || "";
   });
   state.choices = { ...(record.choices || {}) };
+  normalizeNeckSetup();
   updateAge();
   updateOrthoticsRecheck();
   renderChoices();
