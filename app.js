@@ -26,8 +26,12 @@ const state = {
   orthosOpen: false,
   single: defaultSingle(),
   visitLevels: new Set(),
-  levelFindings: {}
+  levelFindings: {},
+  currentDraftId: null,
+  autosaveReady: false
 };
+
+let autosaveTimer = null;
 
 const sideOptions = [
   { label: "Left", value: "L" },
@@ -438,6 +442,7 @@ function renderAll() {
   renderOrthos();
   renderPriorReference();
   $("#summaryText").textContent = buildSummary();
+  scheduleAutosave();
 }
 
 function updateDateParts() {
@@ -642,6 +647,7 @@ function loadNote(note) {
   state.single = { ...defaultSingle(), ...(note.single || {}) };
   state.visitLevels = new Set(note.visitLevels || []);
   state.levelFindings = note.levelFindings || {};
+  state.currentDraftId = note.id || `draft-${Date.now()}`;
   renderAll();
   setStatus("Draft loaded.");
 }
@@ -656,6 +662,46 @@ function savedDrafts() {
 
 function writeDrafts(drafts) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts.slice(0, 25)));
+}
+
+function noteHasMeaningfulContent() {
+  return Boolean(
+    $("#patientName").value.trim() ||
+    $("#visitTime").value ||
+    $("#doctor").value ||
+    $("#freeNote").value.trim() ||
+    $("#dcNote").value.trim() ||
+    $("#importantNotes").value.trim() ||
+    Object.keys(state.selected).some((key) => state.selected[key]) ||
+    Object.keys(state.sided).length ||
+    Object.keys(state.severity).length ||
+    state.visitLevels.size ||
+    Object.keys(state.levelFindings).length ||
+    state.orthosOpen ||
+    state.single.subjectiveChange ||
+    state.single.treatmentStatus === "DC" ||
+    state.single.acuity !== patientDefaults.acuity ||
+    state.single.improvement !== patientDefaults.improvement ||
+    state.single.schedule !== patientDefaults.schedule
+  );
+}
+
+function persistDraft(statusMessage) {
+  if (!state.currentDraftId) state.currentDraftId = `draft-${Date.now()}`;
+  const draft = noteData();
+  draft.id = state.currentDraftId;
+  const drafts = savedDrafts().filter((item) => item.id !== draft.id);
+  writeDrafts([draft, ...drafts]);
+  renderDrafts();
+  if (statusMessage) setStatus(statusMessage);
+}
+
+function scheduleAutosave() {
+  if (!state.autosaveReady || !noteHasMeaningfulContent()) return;
+  window.clearTimeout(autosaveTimer);
+  autosaveTimer = window.setTimeout(() => {
+    persistDraft("Autosaved.");
+  }, 700);
 }
 
 function renderDrafts() {
@@ -680,11 +726,7 @@ function validateDcNote() {
 
 function saveDraft() {
   if (!validateDcNote()) return;
-  const draft = noteData();
-  draft.id = `${Date.now()}`;
-  writeDrafts([draft, ...savedDrafts()]);
-  renderDrafts();
-  setStatus("Draft saved on this device.");
+  persistDraft("Draft saved on this device.");
 }
 
 function exportNote() {
@@ -716,8 +758,10 @@ function resetNote() {
   state.orthosOpen = false;
   state.single = defaultSingle();
   if (carriedFrequency?.single?.schedule) state.single.schedule = carriedFrequency.single.schedule;
+  state.selected["S:CK"] = true;
   state.visitLevels = new Set();
   state.levelFindings = {};
+  state.currentDraftId = null;
   renderAll();
 }
 
@@ -754,4 +798,5 @@ mountLine("objectiveDetailLine", "OD", objectiveDetailItems);
 mountLine("orthosLine", "ORTHO", orthoItems);
 bindEvents();
 resetNote();
+state.autosaveReady = true;
 renderDrafts();

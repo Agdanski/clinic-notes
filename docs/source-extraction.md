@@ -90,6 +90,7 @@ Some source text is OCR-imperfect, so this file should be corrected against the 
 - Visit number starts at 2 on this repeat-visit sheet.
 - If visit number equals the re-exam-at number, the visit should be highlighted as a re-exam.
 - Subjective region abbreviations should stay in one fast line; CK means checkup and does not need side selection.
+- CK is automatically selected for each new repeat visit.
 - Subjective also has Same, Better, and Worse quick selections.
 - SB means shoulder blade and needs left/right/both selection.
 - For subjective findings with left/right/both, after the side is selected a second tap turns the button yellow and a third tap turns it red for severity.
@@ -125,3 +126,4 @@ Some source text is OCR-imperfect, so this file should be corrected against the 
 - Orthos should include Heel to buttock, SLR, Yoman's, Valsalva's, and Kemp's.
 - Orthopedic tests should record positive/negative, and left/right/both when appropriate.
 - Important notes should be available from visit #2 onward, free text, modifiable each visit, and carried forward to subsequent visits.
+- Repeat visits should autosave after changes so the doctor does not need to remember to press Save.

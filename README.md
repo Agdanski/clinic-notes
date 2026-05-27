@@ -24,6 +24,7 @@ The current repeat-visit screen is intentionally paper-like:
 - Subjective has Same, Better, and Worse quick selections.
 - Subjective sided findings cycle from side-selected, to yellow severity, to red severity, then clear.
 - Subjective non-sided symptom findings also cycle from selected, to yellow severity, to red severity, then clear. CK stays a plain checkup toggle.
+- CK is auto-selected on new repeat visits.
 - Visit # starts at 2 by default because visit 1 belongs to the initial-visit form.
 - Re-exam highlighting appears when the visit number equals the re-exam-at visit number.
 - The second objective line holds foot flare, muscle strength, and torque findings.
@@ -35,6 +36,7 @@ The current repeat-visit screen is intentionally paper-like:
 - Frequency is selected through one `Freq` picker: Daily, 3/wk, 2/wk, 1/wk, 2/mo, 1/mo, 3 wks, 5 wks, 6 wks, or TC.
 - New visits carry forward the most recently saved treatment frequency for that patient.
 - Previous-visit reference includes Orthos when the prior saved visit has orthopedic tests.
+- Notes autosave locally after changes; the Save button remains as an explicit backup.
 - Orthos appears after the five SOAP rows and remains collapsed unless needed.
 - Objective improvement defaults to Same on every visit.
 - The previous saved visit's O, second O line, A, and free note are shown as a quick reference on the next visit.
