@@ -9,12 +9,16 @@
 <body>
   <main class="app-shell">
     <header class="topbar">
-      <div>
+      <div class="brand-lockup">
+        <img class="clinic-logo" src="assets/gdanski-chiropractic-logo-balanced.png" alt="Gdanski Chiropractic logo">
+      </div>
+      <div class="page-title">
         <p class="eyebrow">Repeat visit</p>
         <h1>SOAP note</h1>
       </div>
       <div class="actions">
-        <button type="button" id="newNote">New</button>
+        <a class="button-link" href="initial.html">Initial</a>
+        <button type="button" id="historyNote">History</button>
         <button type="button" id="saveNote">Save</button>
         <button type="button" id="exportNote">Export</button>
         <button type="button" id="printNote">Print</button>
@@ -67,7 +71,10 @@
           <input id="visitNumber" type="number" min="2" step="1" value="2">
         </label>
         <strong class="reexam-flag" id="reexamFlag">Re-exam visit</strong>
+        <strong class="next-reexam-flag" id="nextReexamFlag"></strong>
       </div>
+
+      <div class="patient-alerts" id="patientAlerts" hidden></div>
 
       <section class="carry-forward-row" aria-label="Previous visit and important notes">
         <div class="prior-box">
@@ -77,6 +84,10 @@
           </div>
           <pre id="priorReference">No previous visit saved.</pre>
         </div>
+        <label class="contraindications-box">
+          <span>Contraindications</span>
+          <textarea id="contraindications" rows="5" readonly placeholder="From initial visit"></textarea>
+        </label>
         <label class="important-box">
           <span>Important notes</span>
           <textarea id="importantNotes" rows="5" placeholder="Carried forward for every repeat visit"></textarea>
@@ -131,7 +142,7 @@
 
     <section class="summary-wrap">
       <div class="summary-head">
-        <h2>Signed note text</h2>
+        <h2>Export / print note text</h2>
         <div>
           <button type="button" id="copySummary">Copy</button>
           <button type="button" id="clearDrafts">Clear drafts</button>
@@ -148,6 +159,26 @@
       <h2 id="choiceTitle">Select</h2>
       <div class="choice-buttons" id="choiceButtons"></div>
       <button value="cancel" class="cancel-choice">Cancel</button>
+    </form>
+  </dialog>
+
+  <dialog id="historyDialog" class="history-dialog">
+    <form class="history-shell">
+      <div class="history-head">
+        <h2>Previous SOAP notes</h2>
+        <button type="button" id="historyClose">Close</button>
+      </div>
+      <div class="history-filters">
+        <label>
+          <span>Search</span>
+          <input id="historySearch" type="search" placeholder="patient, date, visit, key term">
+        </label>
+        <label>
+          <span>Date</span>
+          <input id="historyDate" type="date">
+        </label>
+      </div>
+      <div id="historyResults" class="history-results"></div>
     </form>
   </dialog>
 

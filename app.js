@@ -1,7 +1,9 @@
 const STORAGE_KEY = "clinic-repeat-soap-drafts-v2";
+const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
 
 const patientDefaults = {
   patientName: "",
+  contraindications: "",
   reExamEvery: 12,
   initialLevels: [],
   schedule: "2/wk",
@@ -24,6 +26,7 @@ const state = {
   sided: {},
   severity: {},
   orthosOpen: false,
+  profileAlerts: [],
   single: defaultSingle(),
   visitLevels: new Set(),
   levelFindings: {},
@@ -78,7 +81,7 @@ const assessmentItems = [
   ...cervical.map((item) => [item, "level"]),
   ...thoracic.map((item) => [item, "level"]),
   ...lumbar.map((item) => [item, "level"]),
-  ["SI-L", "level"], ["SI-R", "level"], ["Soft tissue only"], ["STX", "fixed"], ["Well"], ["Tight"]
+  ["SI-L", "level"], ["SI-R", "level"], ["Soft tissue only"], ["Well"], ["Tight"]
 ];
 const planItems = [
   ["PT"], ["NK"], ["DT"], ["Lfsty"], ["Nutr"],
@@ -435,9 +438,11 @@ function renderButton(button) {
 }
 
 function renderAll() {
+  applyPatientProfile();
   $$(".mark[data-line]").forEach(renderButton);
   updateDateParts();
   updateReexamFlag();
+  renderPatientAlerts();
   renderDcNote();
   renderOrthos();
   renderPriorReference();
@@ -446,6 +451,7 @@ function renderAll() {
 }
 
 function updateDateParts() {
+  if ($("#monthYear").value && $("#visitDay").value) return;
   const parts = todayParts();
   $("#monthYear").value = parts.monthYear;
   $("#visitDay").value = parts.day;
@@ -454,7 +460,10 @@ function updateDateParts() {
 function updateReexamFlag() {
   const visit = Number($("#visitNumber").value || 0);
   const reexamAt = Number($("#reExamAt").value || 0);
-  $("#visitRow").classList.toggle("is-reexam", visit > 0 && visit === reexamAt);
+  const isReexam = visit > 0 && visit === reexamAt;
+  $("#visitRow").classList.toggle("is-reexam", isReexam);
+  $("#reexamFlag").textContent = isReexam ? `RE-EXAM VISIT #${visit}` : "Re-exam visit";
+  $("#nextReexamFlag").textContent = isReexam ? `Next re-exam: visit ${visit + 12}` : "";
 }
 
 function selectedMarks(line) {
@@ -462,14 +471,14 @@ function selectedMarks(line) {
   Object.entries(state.selected).forEach(([key, selected]) => {
     if (selected && key.startsWith(`${line}:`)) {
       const severity = state.severity[key];
-      const severityText = severity === "yellow" ? "yellow" : severity === "red" ? "red" : "";
+      const severityText = severity === "yellow" ? "moderate" : severity === "red" ? "severe" : "";
       parts.push(`${key.split(":")[1]}${severityText ? ` ${severityText}` : ""}`);
     }
   });
   Object.entries(state.sided).forEach(([key, value]) => {
     if (key.startsWith(`${line}:`)) {
       const severity = state.severity[key];
-      const severityText = severity === "yellow" ? "yellow" : severity === "red" ? "red" : "";
+      const severityText = severity === "yellow" ? "moderate" : severity === "red" ? "severe" : "";
       parts.push(`${key.split(":")[1]} ${displayValue(value)}${severityText ? ` ${severityText}` : ""}`);
     }
   });
@@ -523,6 +532,12 @@ function latestFrequencyDraft() {
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
 }
 
+function latestReexamDraft() {
+  return savedDrafts()
+    .filter((draft) => samePatientOrBlank(draft) && draft.nextReExamAt)
+    .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
+}
+
 function priorLine(label, value) {
   return value ? `${label}: ${value}` : "";
 }
@@ -552,7 +567,6 @@ function buildParts() {
   const orthos = selectedMarks("ORTHO");
   if (state.single.improvement) o.push(state.single.improvement);
   const a = selectedMarks("A");
-  a.push("STX");
   const levels = selectedLevelText();
   if (levels) a.unshift(`Levels ${levels}`);
   const p = selectedMarks("P");
@@ -569,6 +583,40 @@ function buildParts() {
   };
 }
 
+function filled(value, fallback = "Not documented") {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
+function optionalLine(label, value) {
+  const text = String(value || "").trim();
+  return text ? `${label}: ${text}` : "";
+}
+
+function displayVisitDate() {
+  const monthYear = $("#monthYear").value;
+  const day = $("#visitDay").value;
+  const [month, year] = monthYear.split("/");
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  if (Number.isNaN(parsed.getTime())) return filled([monthYear, day].filter(Boolean).join(" day "));
+  return parsed.toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function visitIsoDate() {
+  const [month, year] = $("#monthYear").value.split("/");
+  const day = $("#visitDay").value;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  if (Number.isNaN(parsed.getTime())) return "";
+  const yyyy = parsed.getFullYear();
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  const dd = String(parsed.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function priorReferenceText() {
+  return $("#priorReference").textContent.trim() || "No previous visit saved.";
+}
+
 function buildSummary() {
   const patient = $("#patientName").value.trim();
   const doctor = $("#doctor").value;
@@ -578,25 +626,53 @@ function buildSummary() {
   const freeNote = $("#freeNote").value.trim();
   const dcNote = $("#dcNote").value.trim();
   const importantNotes = $("#importantNotes").value.trim();
+  const contraindications = $("#contraindications").value.trim();
   const parts = buildParts();
+  const isReexam = Number(visitNumber) === Number(reexamAt);
+  const visitLines = [
+    `Patient: ${filled(patient)}`,
+    `Date: ${displayVisitDate()}`,
+    `Time: ${filled(time)}`,
+    `Doctor of record: ${filled(doctor)}`,
+    `Visit number: ${filled(visitNumber)}`,
+    `Re-exam at visit: ${filled(reexamAt)}`,
+    isReexam ? `Re-exam status: This visit is a re-exam. Next re-exam defaults to visit ${Number(visitNumber) + 12}.` : ""
+  ].filter(Boolean);
+  const soapLines = [
+    `Subjective: ${filled(parts.sText)}`,
+    `Objective: ${filled(parts.oText)}`,
+    `Objective detail: ${filled(parts.oDetailText)}`,
+    `Orthopedic tests: ${filled(parts.orthosText, "Not performed/documented")}`,
+    `Assessment: ${filled(parts.aText)}`,
+    `Plan: ${filled(parts.pText)}`,
+    state.single.treatmentStatus === "DC" ? optionalLine("Discontinuing care doctor note", dcNote) : "",
+    optionalLine("Free note", freeNote)
+  ].filter(Boolean);
   return [
-    `PATIENT NAME: ${patient}    MO/YR: ${$("#monthYear").value}    DAY: ${$("#visitDay").value}    TIME: ${time}`,
-    `DR: ${doctor}    VISIT #: ${visitNumber}    RE-EXAM AT: ${reexamAt}`,
-    "DX: Vertebral Subluxation Complex    PL of MAN: Correction of VSC",
-    Number(visitNumber) === Number(reexamAt) ? "RE-EXAM VISIT" : "",
+    "Gdanski Chiropractic Clinic",
+    "Repeat Visit SOAP Note",
     "",
-    `S: ${parts.sText}`,
-    `O: ${parts.oText}`,
-    `O detail: ${parts.oDetailText}`,
-    parts.orthosText ? `Orthos: ${parts.orthosText}` : "",
-    `A: ${parts.aText}`,
-    `P: ${parts.pText}`,
-    state.single.treatmentStatus === "DC" && dcNote ? `DC note: ${dcNote}` : "",
-    importantNotes ? `Important notes: ${importantNotes}` : "",
-    freeNote ? `Free note: ${freeNote}` : "",
+    "Visit Details",
+    ...visitLines,
     "",
-    "* initial-visit pattern    ^ selected/modified this visit"
-  ].filter((line) => line !== "").join("\n");
+    "Diagnosis and Plan of Management",
+    "Diagnosis: Vertebral Subluxation Complex",
+    "Plan of management: Correction of VSC",
+    `Contraindications: ${filled(contraindications, "None documented")}`,
+    "",
+    "Previous Visit Reference",
+    priorReferenceText(),
+    "",
+    "Important Notes",
+    filled(importantNotes, "None documented"),
+    "",
+    "SOAP Note",
+    ...soapLines,
+    "",
+    "Assessment Legend",
+    "* initial-visit pattern",
+    "^ selected/modified this visit"
+  ].join("\n");
 }
 
 function setStatus(message) {
@@ -609,12 +685,22 @@ function setStatus(message) {
 
 function noteData() {
   const parts = buildParts();
+  const visitNumber = Number($("#visitNumber").value || 0);
+  const reExamAt = Number($("#reExamAt").value || 0);
+  const isReexam = visitNumber > 0 && visitNumber === reExamAt;
   return {
     patientName: $("#patientName").value,
     reExamAt: $("#reExamAt").value,
     visitTime: $("#visitTime").value,
+    monthYear: $("#monthYear").value,
+    visitDay: $("#visitDay").value,
+    visitDate: displayVisitDate(),
+    visitDateIso: visitIsoDate(),
     doctor: $("#doctor").value,
     visitNumber: $("#visitNumber").value,
+    contraindications: $("#contraindications").value,
+    isReexam,
+    nextReExamAt: isReexam ? String(visitNumber + 12) : "",
     freeNote: $("#freeNote").value,
     dcNote: $("#dcNote").value,
     importantNotes: $("#importantNotes").value,
@@ -635,6 +721,9 @@ function loadNote(note) {
   $("#patientName").value = note.patientName || "";
   $("#reExamAt").value = note.reExamAt || patientDefaults.reExamEvery;
   $("#visitTime").value = note.visitTime || "";
+  $("#monthYear").value = note.monthYear || "";
+  $("#visitDay").value = note.visitDay || "";
+  $("#contraindications").value = note.contraindications || patientDefaults.contraindications;
   $("#doctor").value = note.doctor || "";
   $("#visitNumber").value = note.visitNumber || 2;
   $("#freeNote").value = note.freeNote || "";
@@ -660,8 +749,71 @@ function savedDrafts() {
   }
 }
 
+function savedProfiles() {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function currentPatientProfile() {
+  const patient = currentPatientName();
+  if (!patient) return null;
+  return savedProfiles()[patient] || null;
+}
+
+function applyPatientProfile() {
+  const profile = currentPatientProfile();
+  state.profileAlerts = [];
+  patientDefaults.initialLevels = [];
+  if (!profile) return;
+  const contraindications = $("#contraindications");
+  if (profile.contraindications !== undefined && contraindications.value !== profile.contraindications) {
+    contraindications.value = profile.contraindications || "";
+  }
+  if (profile.schedule && state.single.schedule === patientDefaults.schedule) {
+    state.single.schedule = profile.schedule;
+  }
+  if (Array.isArray(profile.subluxations)) {
+    patientDefaults.initialLevels = profile.subluxations;
+  }
+  if (profile.neckAdjustment === "N") state.profileAlerts.push("NO NECK ADJUSTMENT");
+  if (profile.softTissueOnly === "Yes") state.profileAlerts.push("SOFT TISSUE ONLY");
+  if (profile.intensity === "Very gentle") state.profileAlerts.push("VERY GENTLE ADJUSTMENTS");
+}
+
+function renderPatientAlerts() {
+  const alertBox = $("#patientAlerts");
+  alertBox.innerHTML = "";
+  alertBox.hidden = state.profileAlerts.length === 0;
+  state.profileAlerts.forEach((message) => {
+    const alert = document.createElement("strong");
+    alert.textContent = message;
+    alertBox.appendChild(alert);
+  });
+}
+
 function writeDrafts(drafts) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts.slice(0, 25)));
+}
+
+function draftPatientKey(draft) {
+  return String(draft.patientName || "").trim().toLowerCase();
+}
+
+function draftVisitKey(draft) {
+  return String(draft.visitNumber || "").trim();
+}
+
+function draftStorageId(draft) {
+  const patient = draftPatientKey(draft).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "patient";
+  const visit = draftVisitKey(draft).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "visit";
+  return `draft-${patient}-visit-${visit}`;
+}
+
+function samePatientVisit(a, b) {
+  return draftPatientKey(a) === draftPatientKey(b) && draftVisitKey(a) === draftVisitKey(b);
 }
 
 function noteHasMeaningfulContent() {
@@ -669,6 +821,7 @@ function noteHasMeaningfulContent() {
     $("#patientName").value.trim() ||
     $("#visitTime").value ||
     $("#doctor").value ||
+    $("#contraindications").value.trim() ||
     $("#freeNote").value.trim() ||
     $("#dcNote").value.trim() ||
     $("#importantNotes").value.trim() ||
@@ -687,10 +840,10 @@ function noteHasMeaningfulContent() {
 }
 
 function persistDraft(statusMessage) {
-  if (!state.currentDraftId) state.currentDraftId = `draft-${Date.now()}`;
   const draft = noteData();
-  draft.id = state.currentDraftId;
-  const drafts = savedDrafts().filter((item) => item.id !== draft.id);
+  draft.id = draftStorageId(draft);
+  state.currentDraftId = draft.id;
+  const drafts = savedDrafts().filter((item) => item.id !== draft.id && !samePatientVisit(item, draft));
   writeDrafts([draft, ...drafts]);
   renderDrafts();
   if (statusMessage) setStatus(statusMessage);
@@ -716,6 +869,142 @@ function renderDrafts() {
   });
 }
 
+function noteDateLabel(draft) {
+  if (draft.visitDate) return draft.visitDate;
+  if (draft.monthYear && draft.visitDay) return `${draft.monthYear} day ${draft.visitDay}`;
+  if (draft.updatedAt) {
+    const parsed = new Date(draft.updatedAt);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
+  }
+  return "Date not saved";
+}
+
+function draftIsoDate(draft) {
+  if (draft.visitDateIso) return draft.visitDateIso;
+  if (draft.monthYear && draft.visitDay) {
+    const [month, year] = String(draft.monthYear).split("/");
+    const parsed = new Date(Number(year), Number(month) - 1, Number(draft.visitDay));
+    if (!Number.isNaN(parsed.getTime())) {
+      return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+    }
+  }
+  if (draft.updatedAt) {
+    const parsed = new Date(draft.updatedAt);
+    if (!Number.isNaN(parsed.getTime())) {
+      return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+    }
+  }
+  return "";
+}
+
+function historySummary(draft) {
+  if (draft.summary) return draft.summary;
+  return [
+    `Patient: ${filled(draft.patientName)}`,
+    `Visit number: ${filled(draft.visitNumber)}`,
+    `Date: ${noteDateLabel(draft)}`,
+    `Subjective: ${filled(draft.sText)}`,
+    `Objective: ${filled(draft.oText)}`,
+    `Objective detail: ${filled(draft.oDetailText)}`,
+    `Orthopedic tests: ${filled(draft.orthosText, "Not performed/documented")}`,
+    `Contraindications: ${filled(draft.contraindications, "None documented")}`,
+    `Assessment: ${filled(draft.aText)}`,
+    `Plan: ${filled(draft.pText)}`,
+    optionalLine("Important notes", draft.importantNotes),
+    optionalLine("Free note", draft.freeNote)
+  ].filter(Boolean).join("\n");
+}
+
+function searchableHistoryText(draft) {
+  return [
+    draft.patientName,
+    draft.doctor,
+    draft.visitNumber,
+    draft.visitDate,
+    draftIsoDate(draft),
+    noteDateLabel(draft),
+    draft.monthYear,
+    draft.visitDay,
+    draft.contraindications,
+    draft.sText,
+    draft.oText,
+    draft.oDetailText,
+    draft.orthosText,
+    draft.aText,
+    draft.pText,
+    draft.importantNotes,
+    draft.freeNote,
+    draft.dcNote,
+    draft.summary
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function renderHistory() {
+  const mount = $("#historyResults");
+  const patient = currentPatientName();
+  const query = $("#historySearch").value.trim().toLowerCase();
+  const tokens = query ? query.split(/\s+/).filter(Boolean) : [];
+  const date = $("#historyDate").value;
+  mount.innerHTML = "";
+  if (!patient) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    empty.textContent = "Enter or open a patient before searching previous SOAP notes.";
+    mount.appendChild(empty);
+    return;
+  }
+  const drafts = savedDrafts()
+    .filter((draft) => {
+      if (!samePatientOrBlank(draft)) return false;
+      const haystack = searchableHistoryText(draft);
+      const matchesText = tokens.every((token) => haystack.includes(token));
+      const matchesDate = !date || draftIsoDate(draft) === date || haystack.includes(date);
+      return matchesText && matchesDate;
+    })
+    .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+  if (!drafts.length) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    empty.textContent = "No matching SOAP notes saved for this patient on this device.";
+    mount.appendChild(empty);
+    return;
+  }
+  drafts.forEach((draft) => {
+    const card = document.createElement("article");
+    card.className = "history-card";
+
+    const head = document.createElement("div");
+    head.className = "history-card-head";
+    const title = document.createElement("div");
+    title.className = "history-card-title";
+    const primary = document.createElement("strong");
+    primary.textContent = `${draft.patientName || "Unnamed patient"} - visit ${draft.visitNumber || ""}`;
+    const meta = document.createElement("span");
+    meta.textContent = `${noteDateLabel(draft)}${draft.doctor ? ` - ${draft.doctor}` : ""}`;
+    title.append(primary, meta);
+
+    const open = document.createElement("button");
+    open.type = "button";
+    open.textContent = "Open";
+    open.addEventListener("click", () => {
+      loadNote(draft);
+      $("#historyDialog").close();
+    });
+    head.append(title, open);
+
+    const summary = document.createElement("pre");
+    summary.textContent = historySummary(draft);
+    card.append(head, summary);
+    mount.appendChild(card);
+  });
+}
+
+function openHistory() {
+  renderHistory();
+  $("#historyDialog").showModal();
+  $("#historySearch").focus();
+}
+
 function validateDcNote() {
   if (state.single.treatmentStatus !== "DC") return true;
   if ($("#dcNote").value.trim()) return true;
@@ -732,21 +1021,32 @@ function saveDraft() {
 function exportNote() {
   if (!validateDcNote()) return;
   const draft = noteData();
-  const blob = new Blob([JSON.stringify(draft, null, 2)], { type: "application/json" });
+  const text = buildSummary();
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `repeat-visit-${draft.visitNumber || "note"}.json`;
+  const patient = filled(draft.patientName, "patient").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  link.download = `${patient || "patient"}-repeat-visit-${draft.visitNumber || "note"}.txt`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function printNote() {
+  if (!validateDcNote()) return;
+  window.print();
 }
 
 function resetNote() {
   const carryForward = latestCarryForwardDraft();
   const carriedFrequency = latestFrequencyDraft();
+  const carriedReexam = latestReexamDraft();
   $("#patientName").value = patientDefaults.patientName;
-  $("#reExamAt").value = patientDefaults.reExamEvery;
+  $("#reExamAt").value = carriedReexam?.nextReExamAt || patientDefaults.reExamEvery;
   $("#visitTime").value = "";
+  $("#monthYear").value = "";
+  $("#visitDay").value = "";
+  $("#contraindications").value = patientDefaults.contraindications;
   $("#doctor").value = "";
   $("#visitNumber").value = 2;
   $("#freeNote").value = "";
@@ -766,18 +1066,22 @@ function resetNote() {
 }
 
 function bindEvents() {
-  ["patientName", "reExamAt", "visitTime", "doctor", "visitNumber", "freeNote", "dcNote", "importantNotes"].forEach((id) => {
+  ["patientName", "reExamAt", "visitTime", "doctor", "visitNumber", "freeNote", "dcNote", "importantNotes", "contraindications"].forEach((id) => {
     $(`#${id}`).addEventListener("input", renderAll);
     $(`#${id}`).addEventListener("change", renderAll);
   });
-  $("#newNote").addEventListener("click", resetNote);
   $("#orthosToggle").addEventListener("click", () => {
     state.orthosOpen = !state.orthosOpen;
     renderAll();
   });
   $("#saveNote").addEventListener("click", saveDraft);
   $("#exportNote").addEventListener("click", exportNote);
-  $("#printNote").addEventListener("click", () => window.print());
+  $("#printNote").addEventListener("click", printNote);
+  $("#historyNote").addEventListener("click", openHistory);
+  $("#historyClose").addEventListener("click", () => $("#historyDialog").close());
+  $("#historyDialog form").addEventListener("submit", (event) => event.preventDefault());
+  $("#historySearch").addEventListener("input", renderHistory);
+  $("#historyDate").addEventListener("input", renderHistory);
   $("#copySummary").addEventListener("click", async () => {
     await navigator.clipboard.writeText($("#summaryText").textContent);
     setStatus("Summary copied.");

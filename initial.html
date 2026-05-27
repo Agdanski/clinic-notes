@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Initial Visit Form</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="initial.css">
+</head>
+<body>
+  <main class="app-shell initial-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="clinic-logo" src="assets/gdanski-chiropractic-logo-balanced.png" alt="Gdanski Chiropractic logo">
+      </div>
+      <div class="page-title">
+        <p class="eyebrow">Initial visit</p>
+        <h1>Clinical intake</h1>
+      </div>
+      <div class="actions">
+        <a class="button-link" href="index.html">SOAP</a>
+        <button type="button" id="saveInitial">Save</button>
+        <button type="button" id="exportInitial">Export</button>
+        <button type="button" id="printInitial">Print</button>
+      </div>
+    </header>
+
+    <div class="role-legend" aria-label="Section responsibility legend">
+      <span class="doctor-key">Doctor completes</span>
+      <span class="staff-key">Staff or automatic</span>
+      <span class="exam-key">Transferred from exam</span>
+    </div>
+
+    <section class="sheet initial-sheet" id="initialSheet">
+      <section class="initial-band patient-band staff-section">
+        <label class="patient-name">
+          <span>Patient name</span>
+          <input id="patientName" name="patientName" autocomplete="off">
+        </label>
+        <label>
+          <span>Month/year</span>
+          <input id="monthYear" name="monthYear" readonly>
+        </label>
+        <label>
+          <span>Day</span>
+          <input id="visitDay" name="visitDay" readonly>
+        </label>
+        <label>
+          <span>DOB</span>
+          <input id="dob" name="dob" type="date">
+        </label>
+        <label>
+          <span>Age</span>
+          <input id="patientAge" name="patientAge" readonly>
+        </label>
+        <label>
+          <span>Doctor</span>
+          <select id="doctor" name="doctor">
+            <option value=""></option>
+            <option>Dr. Allan</option>
+            <option>Dr. Daniel</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="initial-section staff-section">
+        <div class="section-head">
+          <h2>Visit Type</h2>
+          <span>Staff or automatic</span>
+        </div>
+        <div class="field-grid one">
+          <div class="choice-group" data-group="visitType">
+            <button type="button" data-value="NP">NP</button>
+            <button type="button" data-value="React">React</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="initial-section doctor-section">
+        <div class="section-head">
+          <h2>Chief Complaint</h2>
+          <span>Doctor completes</span>
+        </div>
+        <label>
+          <span>Chief complaint</span>
+          <textarea name="chiefComplaint" rows="4"></textarea>
+        </label>
+      </section>
+
+      <section class="initial-section doctor-section">
+        <div class="section-head">
+          <h2>History And DC Comments</h2>
+          <span>Doctor completes</span>
+        </div>
+        <div class="field-grid two textareas">
+          <label>
+            <span>History</span>
+            <textarea name="historyNotes" rows="4"></textarea>
+          </label>
+          <label>
+            <span>DC comments</span>
+            <textarea name="dcComments" rows="4"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="initial-section clinical-grid doctor-section">
+        <div>
+          <div class="section-head">
+            <h2>Assessment Setup</h2>
+            <span>Doctor completes</span>
+          </div>
+          <div class="field-grid one">
+            <label>
+              <span>Diagnosis</span>
+              <input name="diagnosis" value="VSC">
+            </label>
+            <label>
+              <span>Primary subluxation</span>
+              <select id="primarySubluxation" name="primarySubluxation"></select>
+            </label>
+            <label>
+              <span>D.D. options</span>
+              <span class="choice-group inline multi" data-group="differentialDxOptions">
+                <button type="button" data-value="Disc herniation">Disc herniation</button>
+                <button type="button" data-value="Osteoarthritis">Osteoarthritis</button>
+                <button type="button" data-value="Rheumatoid arthritis">Rheumatoid arthritis</button>
+                <button type="button" data-value="Degenerative disc disease">DDD</button>
+                <button type="button" data-value="Spinal stenosis">Spinal stenosis</button>
+                <button type="button" data-value="Radiculopathy">Radiculopathy</button>
+                <button type="button" data-value="Facet syndrome">Facet syndrome</button>
+                <button type="button" data-value="SI dysfunction">SI dysfunction</button>
+                <button type="button" data-value="Sprain/strain">Sprain/strain</button>
+              </span>
+            </label>
+            <label>
+              <span>D.D. other/details</span>
+              <textarea name="differentialDiagnosis" rows="3"></textarea>
+            </label>
+            <label>
+              <span>Contraindication/caution options</span>
+              <span class="choice-group inline multi" data-group="contraindicationOptions">
+                <button type="button" data-value="Osteoporosis">Osteoporosis</button>
+                <button type="button" data-value="No x-rays">No x-rays</button>
+                <button type="button" data-value="Rheumatoid arthritis">Rheumatoid arthritis</button>
+                <button type="button" data-value="High blood pressure">High blood pressure</button>
+                <button type="button" class="critical-option" data-value="Stroke">Stroke</button>
+                <button type="button" class="critical-option" data-value="Heart attack">Heart attack</button>
+                <button type="button" data-value="Degenerative disc disease">DDD</button>
+                <button type="button" data-value="Disc herniation">Disc herniation</button>
+                <button type="button" data-value="Osteoarthritis">Osteoarthritis</button>
+              </span>
+            </label>
+            <label>
+              <span>Contraindications/details</span>
+              <textarea id="contraindications" name="contraindications" rows="4" placeholder="Will carry to repeat SOAP notes"></textarea>
+            </label>
+            <label>
+              <span>Treatment plan</span>
+              <input name="treatmentPlan" value="Correction of VSC">
+            </label>
+            <label>
+              <span>Subluxations to correct</span>
+              <span class="choice-group inline multi level-grid" id="subluxationGrid" data-group="subluxationPattern"></span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <div class="section-head">
+            <h2>Treatment Preferences</h2>
+            <span>Doctor completes</span>
+          </div>
+          <div class="compact-stack">
+            <label>
+              <span>Adjusted first visit?</span>
+              <span class="choice-group inline" data-group="adjusted">
+                <button type="button" data-value="Yes">Yes</button>
+                <button type="button" data-value="No">No</button>
+              </span>
+            </label>
+            <label>
+              <span>Neck adjustment</span>
+              <span class="choice-group inline" data-group="neckAdj">
+                <button type="button" data-value="Y">Y</button>
+                <button type="button" data-value="N">N</button>
+              </span>
+            </label>
+            <label>
+              <span>Neck setup</span>
+              <span class="choice-group inline multi" data-group="neckSetup">
+                <button type="button" data-value="Sup">Sup</button>
+                <button type="button" data-value="Pron">Pron</button>
+                <button type="button" data-value="Ant">Ant</button>
+              </span>
+            </label>
+            <label>
+              <span>Click ok</span>
+              <span class="choice-group inline" data-group="clickOk">
+                <button type="button" data-value="Y">Y</button>
+                <button type="button" data-value="N">N</button>
+                <button type="button" data-value="N/A">N/A</button>
+              </span>
+            </label>
+            <label>
+              <span>Care model</span>
+              <span class="choice-group inline multi" data-group="careModel">
+                <button type="button" data-value="Meric">Meric</button>
+                <button type="button" data-value="AK">AK</button>
+              </span>
+            </label>
+            <label>
+              <span>Frequency</span>
+              <select id="frequency" name="frequency">
+                <option value=""></option>
+                <option>Daily</option>
+                <option>3/wk</option>
+                <option>2/wk</option>
+                <option>1/wk</option>
+                <option>2/mo</option>
+                <option>1/mo</option>
+                <option>TC</option>
+              </select>
+            </label>
+            <label>
+              <span>Lifetime adjustment</span>
+              <span class="choice-group inline" data-group="lifetimeAdj">
+                <button type="button" data-value="Yes">Yes</button>
+                <button type="button" data-value="No">No</button>
+              </span>
+            </label>
+            <label>
+              <span>Wants click</span>
+              <span class="choice-group inline" data-group="wantsClick">
+                <button type="button" data-value="Y">Y</button>
+                <button type="button" data-value="N">N</button>
+                <button type="button" data-value="N/A">N/A</button>
+              </span>
+            </label>
+            <label>
+              <span>Intensity</span>
+              <span class="choice-group inline" data-group="intensity">
+                <button type="button" data-value="Very gentle">Vgentle</button>
+                <button type="button" data-value="Gentle">Gen</button>
+                <button type="button" data-value="Moderate">Mod</button>
+                <button type="button" data-value="Heavy">Heavy</button>
+              </span>
+            </label>
+            <label>
+              <span>Soft tissue only</span>
+              <span class="choice-group inline" data-group="softTissueOnly">
+                <button type="button" data-value="Yes">Yes</button>
+                <button type="button" data-value="No">No</button>
+              </span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="initial-section doctor-section">
+        <div class="section-head">
+          <h2>Risk And Prognosis</h2>
+          <span>Doctor completes</span>
+        </div>
+        <div class="field-grid two">
+          <label>
+            <span>Prognosis</span>
+            <span class="choice-group inline" data-group="prognosis">
+              <button type="button" data-value="Good">Gd</button>
+              <button type="button" data-value="Fair">Fair</button>
+              <button type="button" data-value="Poor">Poor</button>
+              <button type="button" data-value="Unknown">Unknown</button>
+              <button type="button" data-value="Guarded">Guarded</button>
+            </span>
+          </label>
+          <label>
+            <span>Refer MD</span>
+            <span class="choice-group inline" data-group="referMd">
+              <button type="button" data-value="Y">Y</button>
+              <button type="button" data-value="N">N</button>
+            </span>
+          </label>
+          <label>
+            <span>Family history</span>
+            <span class="choice-group inline multi" data-group="familyHistory">
+              <button type="button" data-value="Stroke">Stroke</button>
+              <button type="button" data-value="Heart">Hrt</button>
+              <button type="button" data-value="Cancer">Can</button>
+              <button type="button" data-value="Diabetes">Diab</button>
+              <button type="button" data-value="Aneurysm">Aneur</button>
+              <button type="button" data-value="Rheumatoid">Rh</button>
+            </span>
+          </label>
+          <label>
+            <span>Stroke risk</span>
+            <select name="strokeRisk">
+              <option value=""></option>
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+              <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+            </select>
+          </label>
+          <label>
+            <span>Risk/benefit discussion</span>
+            <span class="choice-group inline multi" data-group="riskBenefit">
+              <button type="button" data-value="Chiropractic risks reviewed">Chiro risks</button>
+              <button type="button" data-value="Chiropractic benefits reviewed">Chiro benefits</button>
+              <button type="button" data-value="Alternatives reviewed">Alternatives</button>
+              <button type="button" data-value="MD referral considered">MD referral</button>
+            </span>
+          </label>
+          <label>
+            <span>Under MD supervision</span>
+            <span class="choice-group inline" data-group="underMd">
+              <button type="button" data-value="Y">Y</button>
+              <button type="button" data-value="N">N</button>
+            </span>
+          </label>
+          <label class="wide">
+            <span>Alternative care options</span>
+            <span class="choice-group inline multi" data-group="alternativeCareOptions">
+              <button type="button" data-value="Massage therapy">Massage therapy</button>
+              <button type="button" data-value="Acupuncture">Acupuncture</button>
+              <button type="button" data-value="Allopathic medicine">Allopathic medicine</button>
+              <button type="button" data-value="Physiotherapy">Physiotherapy</button>
+              <button type="button" data-value="Exercise/rehab">Exercise/rehab</button>
+              <button type="button" data-value="Medication">Medication</button>
+              <button type="button" data-value="Imaging">Imaging</button>
+            </span>
+          </label>
+          <label class="wide">
+            <span>Other alternative care</span>
+            <input name="alternativeCare">
+          </label>
+        </div>
+      </section>
+
+      <section class="initial-section exam-section">
+        <div class="section-head">
+          <h2>Exam Findings</h2>
+          <span>Transferred from exam form when positive</span>
+        </div>
+        <div class="field-grid two textareas">
+          <label>
+            <span>Muscle testing positives</span>
+            <textarea name="examMuscleFindings" rows="4" readonly placeholder="Transferred from examination form"></textarea>
+          </label>
+          <label>
+            <span>Neurological testing positives</span>
+            <textarea name="examNeuroFindings" rows="4" readonly placeholder="Transferred from examination form"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="initial-section doctor-section">
+        <div class="section-head">
+          <h2>Doctor Recommendations</h2>
+          <span>Doctor completes</span>
+        </div>
+        <div class="recommend-grid">
+          <label>
+            <span>Recommend</span>
+            <span class="choice-group inline multi" data-group="recommend">
+              <button type="button" data-value="Ice">ICE</button>
+              <button type="button" data-value="Heat">HEAT</button>
+            </span>
+          </label>
+          <label>
+            <span>Exercise</span>
+            <span class="choice-group inline multi" data-group="exercise">
+              <button type="button" data-value="FHP">Fhp</button>
+              <button type="button" data-value="Swayback">Swybk</button>
+              <button type="button" data-value="Other">Other</button>
+            </span>
+          </label>
+          <label class="conditional-field" id="exerciseOtherWrap" hidden>
+            <span>Other exercise</span>
+            <input name="exerciseOther">
+          </label>
+          <label>
+            <span>X-ray</span>
+            <span class="choice-group inline multi" data-group="xrayRecommend">
+              <button type="button" data-value="Out">Out</button>
+              <button type="button" data-value="None">None</button>
+              <button type="button" data-value="C">C</button>
+              <button type="button" data-value="T">T</button>
+              <button type="button" data-value="LB">LB</button>
+              <button type="button" data-value="Other">Other</button>
+            </span>
+          </label>
+          <label class="conditional-field" id="xrayOtherWrap" hidden>
+            <span>Other x-ray</span>
+            <input name="xrayOther">
+          </label>
+        </div>
+      </section>
+
+      <section class="initial-section staff-section">
+        <div class="section-head">
+          <h2>Referral / Prior Care</h2>
+          <span>Staff or automatic</span>
+        </div>
+        <div class="field-grid two">
+          <label>
+            <span>Referred by</span>
+            <input name="referredBy">
+          </label>
+          <label>
+            <span>MD</span>
+            <input name="md">
+          </label>
+          <label>
+            <span>MD last seen</span>
+            <input name="mdLastSeen">
+          </label>
+          <label>
+            <span>Previous DC</span>
+            <input name="previousDc">
+          </label>
+          <label>
+            <span>Previous DC last seen</span>
+            <input name="previousDcLastSeen">
+          </label>
+          <label>
+            <span>Recent x-ray</span>
+            <span class="choice-group inline" data-group="recentXray">
+              <button type="button" data-value="Y">Y</button>
+              <button type="button" data-value="N">N</button>
+            </span>
+          </label>
+          <label>
+            <span>X-ray date</span>
+            <input name="xrayDate" type="date">
+          </label>
+          <label>
+            <span>X-ray location/body area</span>
+            <select id="xrayLocation" name="xrayLocation"></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="initial-section staff-section">
+        <div class="section-head">
+          <h2>Goals And Lifestyle</h2>
+          <span>Staff or automatic</span>
+        </div>
+        <div class="field-grid two textareas">
+          <label>
+            <span>Goals</span>
+            <textarea name="goals" rows="3"></textarea>
+          </label>
+          <label>
+            <span>Worst habit</span>
+            <textarea name="worstHabit" rows="3"></textarea>
+          </label>
+          <label>
+            <span>Major stress</span>
+            <textarea name="majorStress" rows="3"></textarea>
+          </label>
+          <label>
+            <span>Spouse patient?</span>
+            <span class="choice-group inline" data-group="spousePatient">
+              <button type="button" data-value="Y">Y</button>
+              <button type="button" data-value="N">N</button>
+            </span>
+          </label>
+          <label>
+            <span>Spouse name</span>
+            <input name="spouseName">
+          </label>
+          <label>
+            <span>Kids patient?</span>
+            <span class="choice-group inline" data-group="kidsPatient">
+              <button type="button" data-value="Y">Y</button>
+              <button type="button" data-value="N">N</button>
+            </span>
+          </label>
+          <label>
+            <span>Kids name</span>
+            <input name="kidsName">
+          </label>
+        </div>
+      </section>
+
+      <section class="initial-section staff-section">
+        <div class="section-head">
+          <h2>Orthotics And Practitioners</h2>
+          <span>Staff or automatic</span>
+        </div>
+        <div class="recommend-grid">
+          <label>
+            <span>Orthotics</span>
+            <span class="choice-group inline" data-group="orthotics">
+              <button type="button" data-value="Y">Y</button>
+              <button type="button" data-value="N">N</button>
+            </span>
+          </label>
+          <label>
+            <span>Orthotics re-check date</span>
+            <input name="recheckDate" type="date">
+          </label>
+          <label>
+            <span>Last orthotics date</span>
+            <input name="orthoticsLastDate" type="date">
+          </label>
+          <label>
+            <span>RMT</span>
+            <span class="choice-group inline" data-group="rmt">
+              <button type="button" data-value="Y">Y</button>
+              <button type="button" data-value="N">N</button>
+            </span>
+          </label>
+          <label class="conditional-field" id="rmtWhoWrap" hidden>
+            <span>RMT who</span>
+            <input name="rmtWho">
+          </label>
+          <label>
+            <span>ACU</span>
+            <span class="choice-group inline" data-group="acu">
+              <button type="button" data-value="Y">Y</button>
+              <button type="button" data-value="N">N</button>
+            </span>
+          </label>
+          <label class="conditional-field" id="acuWhoWrap" hidden>
+            <span>ACU who</span>
+            <input name="acuWho">
+          </label>
+        </div>
+      </section>
+
+      <section class="initial-section legal-note">
+        <p>The performance of an adjustment/manipulation/mobilization means that a subluxation/spinal mechanical assessment was performed with a finding of a subluxation/fixation/biomechanical dysfunction at the adjusted/manipulated level indicating the therapeutic necessity for chiropractic care.</p>
+        <p>Lifetime means wellness care and is elective care given at regular intervals designed to maintain maximum health and promote optimal function.</p>
+      </section>
+    </section>
+
+    <section class="summary-wrap">
+      <div class="summary-head">
+        <h2>Export / print initial note</h2>
+        <div>
+          <button type="button" id="copyInitial">Copy</button>
+          <button type="button" id="clearInitial">Clear saved</button>
+        </div>
+      </div>
+      <output id="statusLine" aria-live="polite"></output>
+      <pre id="summaryText"></pre>
+    </section>
+  </main>
+
+  <script src="initial.js"></script>
+</body>
+</html>

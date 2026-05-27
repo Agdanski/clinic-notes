@@ -53,13 +53,34 @@ button {
 
 .topbar {
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
+  min-height: 64px;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.clinic-logo {
+  width: auto;
+  height: 58px;
+  max-width: 210px;
+  display: block;
+  background: transparent;
+  object-fit: contain;
+}
+
+.page-title {
+  flex: 1 1 auto;
+  min-width: 180px;
 }
 
 .eyebrow {
   margin: 0;
   color: #286d60;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -72,7 +93,7 @@ h2 {
 }
 
 h1 {
-  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-size: clamp(1.45rem, 2.6vw, 2.4rem);
   line-height: 0.95;
 }
 
@@ -87,22 +108,29 @@ h2 {
   justify-content: flex-end;
 }
 
-button {
-  min-height: 42px;
+button,
+.button-link {
+  min-height: 36px;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: #fff;
   color: var(--ink);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 800;
+  text-decoration: none;
 }
 
 .actions button,
+.actions .button-link,
 .summary-head button {
-  padding: 0 14px;
+  padding: 0 10px;
 }
 
 button:focus-visible,
+.button-link:focus-visible,
 input:focus,
 select:focus,
 textarea:focus {
@@ -175,7 +203,8 @@ input[readonly] {
   background: #fff7e7;
 }
 
-.reexam-flag {
+.reexam-flag,
+.next-reexam-flag {
   display: none;
   min-height: 40px;
   align-items: center;
@@ -190,15 +219,50 @@ input[readonly] {
   display: flex;
 }
 
+.visit-row.is-reexam .next-reexam-flag {
+  display: flex;
+  background: #fff;
+  color: #573808;
+  border: 1px solid var(--visit-border);
+}
+
+.patient-alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px;
+  border: 2px solid #9f2f2f;
+  border-radius: 8px;
+  background: #fff1f1;
+}
+
+.patient-alerts[hidden] {
+  display: none;
+}
+
+.patient-alerts strong {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 7px;
+  background: #9f2f2f;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
 .carry-forward-row {
   display: grid;
-  grid-template-columns: minmax(260px, 0.95fr) minmax(300px, 1.25fr);
+  grid-template-columns: minmax(240px, 0.95fr) minmax(190px, 0.62fr) minmax(280px, 1.18fr);
   align-items: stretch;
   gap: 10px;
   margin: 8px 0 10px;
 }
 
 .prior-box,
+.contraindications-box,
 .important-box {
   display: block;
   min-width: 0;
@@ -231,6 +295,11 @@ input[readonly] {
 
 .important-box textarea {
   min-height: 132px;
+}
+
+.contraindications-box textarea {
+  min-height: 132px;
+  background: #fbfcfc;
 }
 
 .note-line {
@@ -442,6 +511,98 @@ dialog {
   box-shadow: 0 24px 80px rgba(23, 32, 38, 0.28);
 }
 
+.history-dialog {
+  width: min(900px, calc(100vw - 28px));
+  max-height: min(82vh, 760px);
+}
+
+.history-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.history-head,
+.history-filters,
+.history-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-head {
+  justify-content: space-between;
+}
+
+.history-head h2 {
+  margin: 0;
+}
+
+.history-head button {
+  min-height: 34px;
+}
+
+.history-filters {
+  align-items: end;
+}
+
+.history-filters label {
+  flex: 1 1 220px;
+}
+
+.history-results {
+  display: grid;
+  gap: 10px;
+  max-height: 58vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.history-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 10px;
+}
+
+.history-card-head {
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.history-card-title {
+  display: grid;
+  gap: 2px;
+}
+
+.history-card-title strong {
+  font-size: 1rem;
+}
+
+.history-card-title span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.history-card button {
+  min-height: 34px;
+}
+
+.history-card pre {
+  min-height: 120px;
+  max-height: 210px;
+  font-size: 0.82rem;
+}
+
+.history-empty {
+  padding: 20px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 800;
+  text-align: center;
+}
+
 dialog::backdrop {
   background: rgba(23, 32, 38, 0.32);
 }
@@ -512,6 +673,16 @@ dialog::backdrop {
     display: block;
   }
 
+  .brand-lockup {
+    margin-bottom: 6px;
+  }
+
+  .clinic-logo {
+    width: auto;
+    height: 52px;
+    max-width: 170px;
+  }
+
   .actions {
     justify-content: stretch;
     margin-top: 10px;
@@ -519,6 +690,14 @@ dialog::backdrop {
 
   .actions button {
     flex: 1 1 68px;
+  }
+
+  .history-filters {
+    display: block;
+  }
+
+  .history-filters label + label {
+    margin-top: 8px;
   }
 
   .patient-row,
@@ -550,7 +729,8 @@ dialog::backdrop {
   .sheet,
   .summary-head,
   #statusLine,
-  .draft-list {
+  .draft-list,
+  dialog {
     display: none;
   }
 

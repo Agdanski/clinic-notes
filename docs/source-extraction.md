@@ -89,6 +89,7 @@ Some source text is OCR-imperfect, so this file should be corrected against the 
 - Doctor of record must be selectable.
 - Visit number starts at 2 on this repeat-visit sheet.
 - If visit number equals the re-exam-at number, the visit should be highlighted as a re-exam.
+- When a visit is a re-exam, show that clearly and set the next re-exam default to 12 visits later.
 - Subjective region abbreviations should stay in one fast line; CK means checkup and does not need side selection.
 - CK is automatically selected for each new repeat visit.
 - Subjective also has Same, Better, and Worse quick selections.

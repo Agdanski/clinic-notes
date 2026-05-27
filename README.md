@@ -27,6 +27,7 @@ The current repeat-visit screen is intentionally paper-like:
 - CK is auto-selected on new repeat visits.
 - Visit # starts at 2 by default because visit 1 belongs to the initial-visit form.
 - Re-exam highlighting appears when the visit number equals the re-exam-at visit number.
+- Re-exam visits show a banner and calculate the next re-exam 12 visits later.
 - The second objective line holds foot flare, muscle strength, and torque findings.
 - Objective muscles Psoas through Lat require left/right/both plus normal/weak.
 - Optional Orthos extension can be opened for visits that need orthopedic tests.
