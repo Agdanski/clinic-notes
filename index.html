@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Repeat Visit SOAP Note</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Repeat visit</p>
+        <h1>SOAP note</h1>
+      </div>
+      <div class="actions">
+        <button type="button" id="newNote">New</button>
+        <button type="button" id="saveNote">Save</button>
+        <button type="button" id="exportNote">Export</button>
+        <button type="button" id="printNote">Print</button>
+      </div>
+    </header>
+
+    <section class="sheet" id="sheet">
+      <div class="patient-row">
+        <label class="patient-name">
+          <span>Patient name</span>
+          <input id="patientName" placeholder="from initial visit form">
+        </label>
+        <div class="fixed-field">
+          <span>DX</span>
+          <strong>Vertebral Subluxation Complex</strong>
+        </div>
+        <div class="fixed-field">
+          <span>PL of MAN</span>
+          <strong>Correction of VSC</strong>
+        </div>
+        <label>
+          <span>Re-exam at visit</span>
+          <input id="reExamAt" type="number" min="2" step="1" value="12">
+        </label>
+      </div>
+
+      <div class="visit-row" id="visitRow">
+        <label>
+          <span>Month/year</span>
+          <input id="monthYear" readonly>
+        </label>
+        <label>
+          <span>Day</span>
+          <input id="visitDay" readonly>
+        </label>
+        <label>
+          <span>Time</span>
+          <input id="visitTime" type="time">
+        </label>
+        <label>
+          <span>Doctor of record</span>
+          <select id="doctor">
+            <option value=""></option>
+            <option>Dr. Allan</option>
+            <option>Dr. Daniel</option>
+          </select>
+        </label>
+        <label>
+          <span>#</span>
+          <input id="visitNumber" type="number" min="2" step="1" value="2">
+        </label>
+        <strong class="reexam-flag" id="reexamFlag">Re-exam visit</strong>
+      </div>
+
+      <section class="carry-forward-row" aria-label="Previous visit and important notes">
+        <div class="prior-box">
+          <div class="box-head">
+            <h2>Previous visit</h2>
+            <span>O, Orthos, A, free note</span>
+          </div>
+          <pre id="priorReference">No previous visit saved.</pre>
+        </div>
+        <label class="important-box">
+          <span>Important notes</span>
+          <textarea id="importantNotes" rows="5" placeholder="Carried forward for every repeat visit"></textarea>
+        </label>
+      </section>
+
+      <div class="note-line">
+        <div class="line-label">S</div>
+        <div class="line-content" id="subjectiveLine"></div>
+      </div>
+
+      <div class="note-line">
+        <div class="line-label">O</div>
+        <div class="line-content" id="objectiveLine"></div>
+      </div>
+
+      <div class="note-line">
+        <div class="line-label"></div>
+        <div class="line-content" id="objectiveDetailLine"></div>
+      </div>
+
+      <div class="note-line assessment-line">
+        <div class="line-label">A</div>
+        <div class="line-content" id="assessmentLine"></div>
+      </div>
+
+      <div class="note-line plan-line">
+        <div class="line-label">P</div>
+        <div class="line-content" id="planLine"></div>
+      </div>
+
+      <div class="note-line orthos-line">
+        <div class="line-label orthos-label">Orthos</div>
+        <div class="line-content">
+          <button type="button" class="mark extension-toggle" id="orthosToggle" aria-expanded="false">Orthos</button>
+          <div class="extension-panel" id="orthosPanel" hidden>
+            <div class="line-content" id="orthosLine"></div>
+          </div>
+        </div>
+      </div>
+
+      <label class="free-note">
+        <span>Optional free note</span>
+        <textarea id="freeNote" rows="3"></textarea>
+      </label>
+
+      <label class="free-note dc-note" id="dcNoteWrap" hidden>
+        <span>Doctor note required for discontinuing care</span>
+        <textarea id="dcNote" rows="3" placeholder="Reason care is being discontinued"></textarea>
+      </label>
+    </section>
+
+    <section class="summary-wrap">
+      <div class="summary-head">
+        <h2>Signed note text</h2>
+        <div>
+          <button type="button" id="copySummary">Copy</button>
+          <button type="button" id="clearDrafts">Clear drafts</button>
+        </div>
+      </div>
+      <output id="statusLine" aria-live="polite"></output>
+      <pre id="summaryText"></pre>
+      <div id="draftList" class="draft-list"></div>
+    </section>
+  </main>
+
+  <dialog id="choiceDialog">
+    <form method="dialog">
+      <h2 id="choiceTitle">Select</h2>
+      <div class="choice-buttons" id="choiceButtons"></div>
+      <button value="cancel" class="cancel-choice">Cancel</button>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
