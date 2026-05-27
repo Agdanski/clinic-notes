@@ -869,6 +869,26 @@ function renderDrafts() {
   });
 }
 
+function loadRequestedNoteFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const patient = String(params.get("patient") || "").trim().toLowerCase();
+  const visit = String(params.get("visit") || "").trim();
+  if (!patient) return;
+
+  const matchingDrafts = savedDrafts()
+    .filter((draft) => draftPatientKey(draft) === patient)
+    .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+  const requested = visit ? matchingDrafts.find((draft) => draftVisitKey(draft) === visit) : matchingDrafts[0];
+
+  if (requested) {
+    loadNote(requested);
+    return;
+  }
+
+  $("#patientName").value = params.get("patient");
+  renderAll();
+}
+
 function noteDateLabel(draft) {
   if (draft.visitDate) return draft.visitDate;
   if (draft.monthYear && draft.visitDay) return `${draft.monthYear} day ${draft.visitDay}`;
@@ -1102,5 +1122,6 @@ mountLine("objectiveDetailLine", "OD", objectiveDetailItems);
 mountLine("orthosLine", "ORTHO", orthoItems);
 bindEvents();
 resetNote();
+loadRequestedNoteFromUrl();
 state.autosaveReady = true;
 renderDrafts();

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clinic Notes Demo</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main class="app-shell demo-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="clinic-logo" src="assets/gdanski-chiropractic-logo-balanced.png" alt="Gdanski Chiropractic logo">
+      </div>
+      <div class="page-title">
+        <p class="eyebrow">Demo mode</p>
+        <h1>Fake patient data</h1>
+      </div>
+      <div class="actions">
+        <a class="button-link" href="initial.html">Initial</a>
+        <a class="button-link" href="index.html">SOAP</a>
+      </div>
+    </header>
+
+    <section class="sheet demo-card">
+      <div>
+        <h2>Staff demo patient</h2>
+        <p>
+          This page adds a clearly fake patient and fake visit history to this browser only.
+          It does not erase your current work.
+        </p>
+      </div>
+      <div class="demo-actions">
+        <button type="button" id="seedDemo">Load fake demo data</button>
+        <a class="button-link" id="openInitialDemo" href="initial.html?patient=Demo%20Patient%20-%20Taylor%20Brooks">Open demo initial</a>
+        <a class="button-link" id="openSoapDemo" href="index.html?patient=Demo%20Patient%20-%20Taylor%20Brooks&visit=4">Open demo SOAP</a>
+        <button type="button" id="removeDemo">Remove demo data</button>
+      </div>
+      <output id="demoStatus" aria-live="polite"></output>
+    </section>
+  </main>
+
+  <script src="demo.js"></script>
+</body>
+</html>

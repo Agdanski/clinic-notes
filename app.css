@@ -459,6 +459,39 @@ textarea {
   background: #fff;
 }
 
+.demo-shell {
+  max-width: 980px;
+}
+
+.demo-card {
+  display: grid;
+  gap: 16px;
+}
+
+.demo-card p {
+  max-width: 720px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.demo-actions button,
+.demo-actions .button-link {
+  padding: 0 12px;
+}
+
+#demoStatus {
+  min-height: 24px;
+  color: #286d60;
+  font-weight: 800;
+}
+
 .summary-head {
   justify-content: space-between;
   margin-bottom: 6px;

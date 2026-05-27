@@ -413,6 +413,25 @@ function clearSaved() {
   setStatus("Saved initial visit cleared.");
 }
 
+function loadInitialRecord(record) {
+  Object.entries(record.fields || {}).forEach(([name, value]) => {
+    const field = document.getElementsByName(name)[0];
+    if (field) field.value = value || "";
+  });
+  state.choices = { ...(record.choices || {}) };
+  updateAge();
+  updateOrthoticsRecheck();
+  renderChoices();
+  setStatus("Initial visit loaded.");
+}
+
+function loadRequestedInitialFromUrl() {
+  const patient = String(new URLSearchParams(window.location.search).get("patient") || "").trim().toLowerCase();
+  if (!patient) return;
+  const record = savedInitials().find((item) => patientKey(item?.fields?.patientName) === patient);
+  if (record) loadInitialRecord(record);
+}
+
 function updateDateParts() {
   const parts = todayParts();
   $("#monthYear").value = parts.monthYear;
@@ -470,4 +489,5 @@ bindActions();
 updateDateParts();
 updateAge();
 setInitialDefaults();
+loadRequestedInitialFromUrl();
 state.autosaveReady = true;
