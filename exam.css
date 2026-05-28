@@ -155,6 +155,32 @@
   padding: 0;
 }
 
+.range-scale {
+  display: grid;
+  grid-template-columns: auto minmax(110px, 1fr) 34px auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.range-scale span,
+.range-scale strong {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.range-scale strong {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+}
+
 input[type="range"] {
   padding: 0;
 }

@@ -72,11 +72,21 @@
           <div class="exam-inline">
             <label>
               <span>Trap tension</span>
-              <input name="trapTension" type="range" min="1" max="10" value="1">
+              <span class="range-scale">
+                <span>0</span>
+                <input name="trapTension" type="range" min="0" max="10" value="0">
+                <strong data-range-value="trapTension">0</strong>
+                <span>10</span>
+              </span>
             </label>
             <label>
               <span>Occipital trigger</span>
-              <input name="occTrigger" type="range" min="1" max="10" value="1">
+              <span class="range-scale">
+                <span>0</span>
+                <input name="occTrigger" type="range" min="0" max="10" value="0">
+                <strong data-range-value="occTrigger">0</strong>
+                <span>10</span>
+              </span>
             </label>
           </div>
         </section>
@@ -107,7 +117,12 @@
             </label>
             <label>
               <span>Glute trigger</span>
-              <input name="glutTrigger" type="range" min="1" max="10" value="1">
+              <span class="range-scale">
+                <span>0</span>
+                <input name="glutTrigger" type="range" min="0" max="10" value="0">
+                <strong data-range-value="glutTrigger">0</strong>
+                <span>10</span>
+              </span>
             </label>
           </div>
         </section>

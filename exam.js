@@ -489,7 +489,15 @@ function scheduleAutosave() {
 
 function render() {
   renderChoices();
+  renderRangeValues();
   $("#summaryText").textContent = buildSummary();
+}
+
+function renderRangeValues() {
+  $$("[data-range-value]").forEach((target) => {
+    const field = document.getElementsByName(target.dataset.rangeValue)[0];
+    target.textContent = field ? field.value : "0";
+  });
 }
 
 function loadExam(record) {
