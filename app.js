@@ -778,9 +778,9 @@ function applyPatientProfile() {
   if (Array.isArray(profile.subluxations)) {
     patientDefaults.initialLevels = profile.subluxations;
   }
-  if (profile.neckAdjustment === "N") state.profileAlerts.push("NO NECK ADJUSTMENT");
+  if (profile.neckAdjustment === "N") state.profileAlerts.push("NO NECK");
   if (profile.softTissueOnly === "Yes") state.profileAlerts.push("SOFT TISSUE ONLY");
-  if (profile.intensity === "Very gentle") state.profileAlerts.push("VERY GENTLE ADJUSTMENTS");
+  if (profile.intensity === "Very gentle") state.profileAlerts.push("VERY GENTLE");
 }
 
 function renderPatientAlerts() {

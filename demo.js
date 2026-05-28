@@ -38,7 +38,7 @@ function soapVisit({ visitNumber, dateIso, visitDay, time, selected, sided, seve
     nextReExamAt: "",
     freeNote,
     dcNote: "",
-    importantNotes: "Prefers very gentle care. Avoid cervical adjustment unless doctor reviews first.",
+    importantNotes: "VERY GENTLE. NO NECK.",
     selected,
     sided,
     severity,
