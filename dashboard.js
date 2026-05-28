@@ -448,12 +448,13 @@ function applyImport() {
   };
   writeJson(PROFILE_STORAGE_KEY, profiles);
   updateLinks();
-  setStatus("Imported into this browser. Open Initial, Exam, or SOAP to review.");
+  setStatus("Imported into this browser. Open Initial, Consent, Exam, or SOAP to review.");
 }
 
 function updateLinks() {
   const patient = encodeURIComponent($("#patientName").value.trim());
   $("#openInitial").href = patient ? `initial.html?patient=${patient}` : "initial.html";
+  $("#openConsent").href = patient ? `consent.html?patient=${patient}` : "consent.html";
   $("#openExam").href = patient ? `exam.html?patient=${patient}` : "exam.html";
   $("#openSoap").href = patient ? `index.html?patient=${patient}` : "index.html";
 }

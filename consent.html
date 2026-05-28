@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Informed Consent</title>
+  <link rel="stylesheet" href="app.css?v=20260528-alerts">
+  <link rel="stylesheet" href="initial.css">
+  <link rel="stylesheet" href="consent.css">
+</head>
+<body>
+  <main class="app-shell consent-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="clinic-logo" src="assets/gdanski-chiropractic-logo-balanced.png" alt="Gdanski Chiropractic logo">
+      </div>
+      <div class="page-title">
+        <p class="eyebrow">Patient consent</p>
+        <h1>Informed consent</h1>
+      </div>
+      <div class="actions">
+        <a class="button-link" href="dashboard.html">Dashboard</a>
+        <a class="button-link" href="initial.html">Initial</a>
+        <a class="button-link" href="exam.html">Exam</a>
+        <a class="button-link" href="index.html">SOAP</a>
+        <a class="button-link" href="demo.html">Demo</a>
+        <button type="button" id="saveConsent">Save</button>
+        <button type="button" id="exportConsent">Export</button>
+        <button type="button" id="printConsent">Print</button>
+      </div>
+    </header>
+
+    <section class="sheet consent-sheet">
+      <section class="consent-card patient-card">
+        <div class="field-grid four">
+          <label>
+            <span>Patient name</span>
+            <input id="patientName" autocomplete="off">
+          </label>
+          <label>
+            <span>DOB</span>
+            <input id="dob" type="date">
+          </label>
+          <label>
+            <span>Age</span>
+            <input id="patientAge" readonly>
+          </label>
+          <label>
+            <span>Date</span>
+            <input id="consentDate" type="date">
+          </label>
+        </div>
+      </section>
+
+      <section class="consent-card consent-text">
+        <h2>Consent To Chiropractic Treatment</h2>
+        <p>It is important to consider the benefits, risks and alternatives to treatment. This will help you make an informed decision about proceeding with care. Chiropractic treatment includes adjustment, manipulation and mobilization of the spine and other joints of the body. It also includes soft-tissue techniques, therapeutic modalities and exercise.</p>
+
+        <h3>Benefits</h3>
+        <p>Chiropractic treatment has been shown to be effective for complaints of the neck, back and other areas of the body related to nerves, muscles and joints. Treatment by your chiropractor can relieve pain, including headache, altered sensation, muscle stiffness and spasm. It can also increase mobility and improve function.</p>
+
+        <h3>Risks</h3>
+        <p>The risks associated with chiropractic treatment vary according to each patient's condition and the location and type of treatment. The risks include:</p>
+        <ul>
+          <li><strong>Temporary discomfort or worsening of symptoms.</strong> Treatment may cause some discomfort or an increase in pre-existing symptoms of pain or stiffness. This can last a few hours to a few days.</li>
+          <li><strong>Skin irritation or burn.</strong> Skin irritation or a burn may occur with the use of some types of electrical and light therapies. Skin irritation should resolve. A burn may leave a permanent scar.</li>
+          <li><strong>Sprain or strain.</strong> A muscle or ligament sprain or strain may occur. These should resolve within a few days or weeks with rest, minor care and/or protection of the affected area.</li>
+          <li><strong>Rib fracture.</strong> A rib fracture may occur. This can be painful and limit your activity for some time. These usually heal over several weeks with or without further treatment.</li>
+          <li><strong>Disc injury or aggravation.</strong> Some reported cases associate chiropractic treatment with injury or aggravation of a disc condition. This is rare. Spinal discs may degenerate with age or become damaged, with or without symptoms. Signs and symptoms may include neck and back pain, impaired mobility, or radiating pain and numbness into the legs or arms. In severe cases, impaired bowel or bladder function or impaired leg or arm function may occur, which may need surgery.</li>
+          <li><strong>Stroke.</strong> Some reported cases associate chiropractic treatment of the neck with stroke. This is rare. This type of stroke is a serious event involving arteries in the neck and the interruption of blood flow to the brain. The consequences of a stroke can include impairment of vision, speech, balance and brain function, as well as paralysis or death. If signs of stroke occur, seek medical attention immediately.</li>
+        </ul>
+
+        <h3>Alternatives</h3>
+        <p>Alternatives to chiropractic treatment may include consulting other health professionals, over-the-counter pain relievers, rest, and exercise. Each may have their own benefits and risks.</p>
+
+        <h3>Questions Or Concerns</h3>
+        <p>Please ask questions at any time about your assessment and treatment. Bring any concerns you have to the chiropractor's attention. If you are not comfortable, you may stop treatment at any time. You are encouraged to be involved in and responsible for your care. Inform your chiropractor immediately of any change in your health or condition.</p>
+      </section>
+
+      <section class="consent-card">
+        <label class="check-row">
+          <input id="claimConfirm" type="checkbox">
+          <span>I confirm the reason for care is not related to an active claim for a motor vehicle accident, a workplace safety insurance board claim, or a personal injury claim. Reports will not be sent to lawyers as the office is not licensed to handle those types of cases.</span>
+        </label>
+
+        <div class="warning-strip">Do not sign this form until you meet with the chiropractor.</div>
+
+        <label class="check-row">
+          <input id="patientAccept" type="checkbox">
+          <span>I acknowledge that I have discussed with the chiropractor the assessment of my condition and the treatment plan. I understand the nature of the treatment to be provided to me. I have considered the benefits and risks of treatment, as well as the alternatives to treatment. I consent to chiropractic treatment as proposed to me.</span>
+        </label>
+      </section>
+
+      <section class="signature-grid">
+        <div class="consent-card signature-card">
+          <label>
+            <span>Patient / guardian printed name</span>
+            <input id="patientPrintedName">
+          </label>
+          <div class="signature-head">
+            <span>Patient / guardian signature</span>
+            <button type="button" id="clearPatientSignature">Clear</button>
+          </div>
+          <canvas id="patientSignature" class="signature-pad" width="560" height="180" aria-label="Patient signature"></canvas>
+        </div>
+
+        <div class="consent-card signature-card">
+          <label>
+            <span>Chiropractor</span>
+            <select id="chiropractorName">
+              <option value=""></option>
+              <option>Dr. Allan Gdanski</option>
+              <option>Dr. Daniel Delellis</option>
+            </select>
+          </label>
+          <div class="signature-head">
+            <span>Chiropractor signature</span>
+            <button type="button" id="clearDoctorSignature">Clear</button>
+          </div>
+          <canvas id="doctorSignature" class="signature-pad" width="560" height="180" aria-label="Chiropractor signature"></canvas>
+        </div>
+      </section>
+    </section>
+
+    <section class="summary-wrap">
+      <div class="summary-head">
+        <h2>Export / print consent text</h2>
+        <div>
+          <button type="button" id="copyConsent">Copy</button>
+          <button type="button" id="clearConsent">Clear saved consent</button>
+        </div>
+      </div>
+      <output id="statusLine" aria-live="polite"></output>
+      <pre id="summaryText"></pre>
+      <div id="savedConsentStatus" class="saved-consent-status"></div>
+    </section>
+  </main>
+
+  <script src="consent.js"></script>
+</body>
+</html>
