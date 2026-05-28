@@ -196,7 +196,7 @@ const demoProfile = {
   subluxations: ["L5", "SI-R", "T6"],
   treatmentPlan: "Correction of VSC",
   doctor: "Dr. Allan",
-  examMuscleFindings: "Psoas: Hypo R; Glut: Hypo R",
+  examMuscleFindings: "Psoas: Weak R; Glut: Weak R",
   examOrthoFindings: "SLR: R +",
   examNeuroFindings: "",
   examUpdatedAt: "2026-05-21T13:40:00.000Z",
@@ -222,18 +222,18 @@ const demoExamRecord = {
     swaybackGrade: "1",
     "posture:Hip high": "R",
     "level:L5": "TOP",
-    "level:SI FIX": "finding",
-    "muscle:Psoas:tone": "Hypo",
+    "level:SI-R": "finding",
+    "muscle:Psoas:finding": "Weak",
     "muscle:Psoas:side": "R",
-    "muscle:Glut:tone": "Hypo",
+    "muscle:Glut:finding": "Weak",
     "muscle:Glut:side": "R",
     "ortho:SLR": ["R +"],
     gait: ["Slow"]
   },
-  muscleFindings: "Psoas: Hypo R; Glut: Hypo R",
+  muscleFindings: "Psoas: Weak R; Glut: Weak R",
   orthoFindings: "SLR: R +",
   neuroFindings: "",
-  summary: "Gdanski Chiropractic Clinic\nVSC Examination\n\nPatient\nPatient: Demo Patient - Taylor Brooks\nAge: 44\nDate: 2026-05-21\nDoctor: Dr. Allan\n\nMyopathology Positives\nPsoas: Hypo R\nGlut: Hypo R\n\nOrthopaedic Tests Positives\nSLR: R +\n\nNotes\nDemo exam only. Findings selected to show transfer into initial form.",
+  summary: "Gdanski Chiropractic Clinic\nVSC Examination\n\nPatient\nPatient: Demo Patient - Taylor Brooks\nAge: 44\nDate: 2026-05-21\nDoctor: Dr. Allan\n\nMyopathology Positives\nPsoas: Weak R\nGlut: Weak R\n\nOrthopaedic Tests Positives\nSLR: R +\n\nNotes\nDemo exam only. Findings selected to show transfer into initial form.",
   updatedAt: "2026-05-21T13:40:00.000Z"
 };
 

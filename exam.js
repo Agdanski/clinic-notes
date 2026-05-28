@@ -4,7 +4,7 @@ const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
 const levels = [
   "OCC", "ATLAS", "AXIS", "C3", "C4", "C5", "C6", "C7",
   "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12",
-  "L1", "L2", "L3", "L4", "L5", "SAC", "SI FIX"
+  "L1", "L2", "L3", "L4", "L5", "SAC", "SI-L", "SI-R"
 ];
 const posturalItems = ["Shoulder high", "Hip high", "Foot pronation", "Long leg"];
 const functionalItems = ["K27"];
@@ -152,7 +152,7 @@ function mountMuscles() {
   const target = $("#muscleGrid");
   muscleItems.forEach((item) => {
     addSplitRow(target, item, [
-      { label: "Tone", group: makeChoiceGroup(`muscle:${item}:tone`, ["Normal", "Hyper", "Hypo"]) },
+      { label: "Finding", group: makeChoiceGroup(`muscle:${item}:finding`, ["Normal", "Weak", "Painful"]) },
       { label: "Side", group: makeChoiceGroup(`muscle:${item}:side`, ["L", "R", "Both"]) }
     ]);
   });
@@ -238,7 +238,7 @@ function cycleLevel(level) {
 }
 
 function normalizeChoice(key) {
-  if (key.startsWith("muscle:") && key.endsWith(":tone")) {
+  if (key.startsWith("muscle:") && key.endsWith(":finding")) {
     const item = key.split(":")[1];
     if (state.choices[key] === "Normal") delete state.choices[`muscle:${item}:side`];
   }
@@ -264,8 +264,8 @@ function renderChoices() {
   muscleItems.forEach((item) => {
     const sideGroup = document.querySelector(`[data-group="muscle:${CSS.escape(item)}:side"]`);
     if (!sideGroup) return;
-    const tone = state.choices[`muscle:${item}:tone`];
-    const disabled = !tone || tone === "Normal";
+    const finding = state.choices[`muscle:${item}:finding`];
+    const disabled = !finding || finding === "Normal";
     sideGroup.querySelectorAll("button").forEach((button) => {
       button.disabled = disabled;
     });
@@ -286,10 +286,10 @@ function abnormalEntries(prefix, normalValues = []) {
 
 function muscleFindings() {
   return muscleItems.map((item) => {
-    const tone = state.choices[`muscle:${item}:tone`];
-    if (!tone || tone === "Normal") return "";
+    const finding = state.choices[`muscle:${item}:finding`];
+    if (!finding || finding === "Normal") return "";
     const side = state.choices[`muscle:${item}:side`];
-    return `${item}: ${tone}${side ? ` ${side}` : ""}`;
+    return `${item}: ${finding}${side ? ` ${side}` : ""}`;
   }).filter(Boolean);
 }
 
@@ -497,9 +497,43 @@ function loadExam(record) {
     const field = document.getElementsByName(name)[0];
     if (field) field.value = value || "";
   });
-  state.choices = { ...(record.choices || {}) };
+  state.choices = migrateChoices(record.choices || {});
   render();
   setStatus("Exam loaded.");
+}
+
+function migrateChoices(choices) {
+  const migrated = { ...choices };
+  if (migrated["level:SI FIX"]) {
+    migrated["level:SI-R"] = migrated["level:SI FIX"];
+    delete migrated["level:SI FIX"];
+  }
+  if (migrated["level:SI FIX:side"]) {
+    const oldSide = migrated["level:SI FIX:side"];
+    const sides = Array.isArray(oldSide) ? oldSide : [oldSide];
+    sides.forEach((side) => {
+      if (side === "L" || side === "R") migrated[`level:SI-${side}`] = "finding";
+    });
+    delete migrated["level:SI FIX:side"];
+    delete migrated["level:SI FIX:top"];
+  }
+  muscleItems.forEach((item) => {
+    const oldTone = migrated[`muscle:${item}:tone`];
+    if (oldTone && !migrated[`muscle:${item}:finding`]) {
+      migrated[`muscle:${item}:finding`] = oldTone === "Normal" ? "Normal" : "Weak";
+      delete migrated[`muscle:${item}:tone`];
+    }
+    const oldMulti = migrated[`muscle:${item}`];
+    if (Array.isArray(oldMulti) && oldMulti.length) {
+      const weak = oldMulti.find((entry) => /hypo|weak/i.test(entry));
+      const painful = oldMulti.find((entry) => /pain/i.test(entry));
+      const side = oldMulti.join(" ").includes("L") && oldMulti.join(" ").includes("R") ? "Both" : oldMulti.join(" ").includes("L") ? "L" : oldMulti.join(" ").includes("R") ? "R" : "";
+      migrated[`muscle:${item}:finding`] = painful ? "Painful" : weak ? "Weak" : "Weak";
+      if (side) migrated[`muscle:${item}:side`] = side;
+      delete migrated[`muscle:${item}`];
+    }
+  });
+  return migrated;
 }
 
 function loadRequestedExam() {
@@ -525,6 +559,21 @@ function bindFields() {
       scheduleAutosave();
     });
     field.addEventListener("change", () => {
+      render();
+      scheduleAutosave();
+    });
+  });
+}
+
+function bindSteppers() {
+  $$(".stepper").forEach((stepper) => {
+    stepper.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-step]");
+      if (!button) return;
+      const input = stepper.querySelector("input");
+      const current = input.value === "" ? 0 : Number(input.value);
+      const next = Math.max(0, Math.min(12, current + Number(button.dataset.step)));
+      input.value = String(next);
       render();
       scheduleAutosave();
     });
@@ -602,6 +651,7 @@ mountCranial();
 mountCompression();
 bindChoiceGroups();
 bindFields();
+bindSteppers();
 bindActions();
 setDefaults();
 loadRequestedExam();

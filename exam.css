@@ -78,6 +78,21 @@
   padding: 0 10px;
 }
 
+.scale-legend {
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid #d9e5e2;
+  border-radius: 7px;
+  background: #f4faf8;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.scale-legend strong {
+  color: #286d60;
+}
+
 .neuro-subsection {
   display: grid;
   gap: 6px;
@@ -121,6 +136,23 @@
 .measure-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 10px;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: 38px minmax(56px, 1fr) 38px;
+  gap: 6px;
+}
+
+.stepper input {
+  text-align: center;
+  font-weight: 900;
+}
+
+.stepper button {
+  min-width: 38px;
+  min-height: 40px;
+  padding: 0;
 }
 
 input[type="range"] {

@@ -152,38 +152,23 @@
         </div>
         <div class="exam-choice-table ortho-table" id="orthoGrid"></div>
         <div class="measure-grid">
-          <label><span>Apley's L inches</span><input name="apleyL" inputmode="decimal"></label>
-          <label><span>Apley's R inches</span><input name="apleyR" inputmode="decimal"></label>
+          <label>
+            <span>Apley's L inches</span>
+            <span class="stepper" data-stepper="apleyL">
+              <button type="button" data-step="-1">-</button>
+              <input name="apleyL" readonly>
+              <button type="button" data-step="1">+</button>
+            </span>
+          </label>
+          <label>
+            <span>Apley's R inches</span>
+            <span class="stepper" data-stepper="apleyR">
+              <button type="button" data-step="-1">-</button>
+              <input name="apleyR" readonly>
+              <button type="button" data-step="1">+</button>
+            </span>
+          </label>
         </div>
-      </section>
-
-      <section class="exam-grid two">
-        <section class="exam-section">
-          <div class="section-head">
-            <h2>DTR / Motor / Sensation</h2>
-            <button type="button" class="section-action" id="allNeuroNormal">All normal</button>
-          </div>
-          <div class="neuro-subsection">
-            <h3>DTR</h3>
-            <div class="exam-choice-table neuro-table" id="dtrGrid"></div>
-          </div>
-          <div class="neuro-subsection">
-            <h3>Motor</h3>
-            <div class="exam-choice-table neuro-table" id="motorGrid"></div>
-          </div>
-          <div class="neuro-subsection">
-            <h3>Sensation</h3>
-            <div class="exam-choice-table neuro-table" id="sensationGrid"></div>
-          </div>
-        </section>
-
-        <section class="exam-section">
-          <div class="section-head">
-            <h2>Neurological Assessment</h2>
-            <button type="button" class="section-action" id="allCranialNormal">All normal</button>
-          </div>
-          <div class="exam-choice-table neuro-table" id="cranialGrid"></div>
-        </section>
       </section>
 
       <section class="exam-grid two">
@@ -213,6 +198,39 @@
             <span>Notes</span>
             <textarea name="examNotes" rows="6"></textarea>
           </label>
+        </section>
+      </section>
+
+      <section class="exam-grid two">
+        <section class="exam-section">
+          <div class="section-head">
+            <h2>DTR / Motor / Sensation</h2>
+            <button type="button" class="section-action" id="allNeuroNormal">All normal</button>
+          </div>
+          <div class="scale-legend">
+            <strong>DTR</strong>: 0 absent, 1+ diminished, 2+ normal, 3+ brisk, 4+ very brisk/clonus.
+            <strong>Motor</strong>: 0 no contraction, 1 trace, 2 gravity eliminated, 3 against gravity, 4 against resistance, 5 normal.
+          </div>
+          <div class="neuro-subsection">
+            <h3>DTR</h3>
+            <div class="exam-choice-table neuro-table" id="dtrGrid"></div>
+          </div>
+          <div class="neuro-subsection">
+            <h3>Motor</h3>
+            <div class="exam-choice-table neuro-table" id="motorGrid"></div>
+          </div>
+          <div class="neuro-subsection">
+            <h3>Sensation</h3>
+            <div class="exam-choice-table neuro-table" id="sensationGrid"></div>
+          </div>
+        </section>
+
+        <section class="exam-section">
+          <div class="section-head">
+            <h2>Neurological Assessment</h2>
+            <button type="button" class="section-action" id="allCranialNormal">All normal</button>
+          </div>
+          <div class="exam-choice-table neuro-table" id="cranialGrid"></div>
         </section>
       </section>
     </section>
