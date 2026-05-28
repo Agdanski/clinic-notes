@@ -6,15 +6,16 @@ const levels = [
   "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12",
   "L1", "L2", "L3", "L4", "L5", "SAC", "SI FIX"
 ];
-const posturalItems = ["Shoulder high", "Hip high", "K27", "Pronation", "Long leg"];
+const posturalItems = ["Shoulder high", "Hip high", "Foot pronation", "Long leg"];
+const functionalItems = ["K27"];
 const muscleItems = ["Psoas", "Piriformis", "QF", "Glut", "Hamst", "Delt", "Pect", "Lats", "Other", "S. Spin"];
 const orthoItems = ["Ely's", "Yeomans", "SLR", "Int. shoulder rotation", "Ext. shoulder rotation", "Figure 4"];
-const reflexItems = [
-  "Triceps", "Biceps", "Radial", "C5 motor", "C6 motor", "C7 motor", "C8 motor", "T1 motor",
-  "C5 sensation", "C6 sensation", "C7 sensation", "C8 sensation", "T1 sensation",
-  "Patellar", "Achilles", "L3 motor", "L4 motor", "L5 motor", "S1 motor",
-  "L3 sensation", "L4 sensation", "L5 sensation"
-];
+const cervicalMotionItems = ["C/S rotation", "C/S lateral flexion"];
+const dtrItems = ["Triceps", "Biceps", "Radial", "Patellar", "Achilles"];
+const motorItems = ["C5", "C6", "C7", "C8", "T1", "L3", "L4", "L5", "S1"];
+const sensationItems = ["C5", "C6", "C7", "C8", "T1", "L3", "L4", "L5"];
+const dtrGrades = ["0", "1+", "2+", "3+", "4+"];
+const motorGrades = ["0/5", "1/5", "2/5", "3/5", "4/5", "5/5"];
 const cranialItems = [
   "Visual acuity (II)", "Pupillary reactions (II, III)", "Extraocular movement (III, IV, VI)",
   "Corneal reflex / jaw movement (V)", "Facial sensation (V1, V2, V3)", "Facial movement (VII)",
@@ -104,39 +105,90 @@ function addRow(target, label, group) {
   target.appendChild(row);
 }
 
+function addSplitRow(target, label, groups) {
+  const row = document.createElement("div");
+  row.className = "exam-row split-row";
+  const title = document.createElement("strong");
+  title.textContent = label;
+  row.appendChild(title);
+  const wrap = document.createElement("div");
+  wrap.className = "split-controls";
+  groups.forEach(({ label: groupLabel, group }) => {
+    const item = document.createElement("div");
+    item.className = "split-control";
+    const caption = document.createElement("span");
+    caption.textContent = groupLabel;
+    item.appendChild(caption);
+    item.appendChild(group);
+    wrap.appendChild(item);
+  });
+  row.appendChild(wrap);
+  target.appendChild(row);
+}
+
 function mountPosture() {
   const target = $("#postureGrid");
   posturalItems.forEach((item) => addRow(target, item, makeChoiceGroup(`posture:${item}`, ["L", "N", "R"])));
 }
 
+function mountFunctionalChecks() {
+  const target = $("#functionalGrid");
+  functionalItems.forEach((item) => addRow(target, item, makeChoiceGroup(`functional:${item}`, ["L", "N", "R"])));
+}
+
 function mountLevels() {
   const target = $("#levelGrid");
   levels.forEach((level) => {
-    const card = document.createElement("div");
-    card.className = "level-card";
-    const title = document.createElement("strong");
-    title.textContent = level;
-    card.appendChild(title);
-    card.appendChild(makeChoiceGroup(`level:${level}:side`, ["L", "R"], true));
-    card.appendChild(makeChoiceGroup(`level:${level}:top`, ["TOP"], true));
-    target.appendChild(card);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "level-button";
+    button.dataset.level = level;
+    button.textContent = level;
+    target.appendChild(button);
   });
 }
 
 function mountMuscles() {
   const target = $("#muscleGrid");
-  muscleItems.forEach((item) => addRow(target, item, makeChoiceGroup(`muscle:${item}`, ["L hyper", "L hypo", "R hyper", "R hypo"], true)));
+  muscleItems.forEach((item) => {
+    addSplitRow(target, item, [
+      { label: "Tone", group: makeChoiceGroup(`muscle:${item}:tone`, ["Normal", "Hyper", "Hypo"]) },
+      { label: "Side", group: makeChoiceGroup(`muscle:${item}:side`, ["L", "R", "Both"]) }
+    ]);
+  });
 }
 
 function mountOrthos() {
   const target = $("#orthoGrid");
   orthoItems.forEach((item) => addRow(target, item, makeChoiceGroup(`ortho:${item}`, ["L +", "L -", "R +", "R -"], true)));
   addRow(target, "Valsalvas", makeChoiceGroup("ortho:Valsalvas", ["+", "-"]));
+  cervicalMotionItems.forEach((item) => addRow(target, item, makeChoiceGroup(`motion:${item}`, ["L normal", "L decreased", "R normal", "R decreased"], true)));
 }
 
-function mountReflexes() {
-  const target = $("#reflexGrid");
-  reflexItems.forEach((item) => addRow(target, item, makeChoiceGroup(`reflex:${item}`, ["L AbN", "R AbN"], true)));
+function mountDtrMotorSensation() {
+  const dtr = $("#dtrGrid");
+  dtrItems.forEach((item) => {
+    addSplitRow(dtr, item, [
+      { label: "L", group: makeChoiceGroup(`dtr:${item}:L`, dtrGrades) },
+      { label: "R", group: makeChoiceGroup(`dtr:${item}:R`, dtrGrades) }
+    ]);
+  });
+
+  const motor = $("#motorGrid");
+  motorItems.forEach((item) => {
+    addSplitRow(motor, item, [
+      { label: "L", group: makeChoiceGroup(`motor:${item}:L`, motorGrades) },
+      { label: "R", group: makeChoiceGroup(`motor:${item}:R`, motorGrades) }
+    ]);
+  });
+
+  const sensation = $("#sensationGrid");
+  sensationItems.forEach((item) => {
+    addSplitRow(sensation, item, [
+      { label: "L", group: makeChoiceGroup(`sensation:${item}:L`, ["Normal", "Decreased"]) },
+      { label: "R", group: makeChoiceGroup(`sensation:${item}:R`, ["Normal", "Decreased"]) }
+    ]);
+  });
 }
 
 function mountCranial() {
@@ -151,6 +203,13 @@ function mountCompression() {
 
 function bindChoiceGroups() {
   document.addEventListener("click", (event) => {
+    const levelButton = event.target.closest(".level-button[data-level]");
+    if (levelButton) {
+      cycleLevel(levelButton.dataset.level);
+      render();
+      scheduleAutosave();
+      return;
+    }
     const button = event.target.closest(".choice-group button[data-value]");
     if (!button) return;
     const group = button.closest(".choice-group");
@@ -164,9 +223,25 @@ function bindChoiceGroups() {
     } else {
       state.choices[key] = state.choices[key] === value ? "" : value;
     }
+    normalizeChoice(key);
     render();
     scheduleAutosave();
   });
+}
+
+function cycleLevel(level) {
+  const key = `level:${level}`;
+  const current = state.choices[key] || "";
+  if (!current) state.choices[key] = "finding";
+  else if (current === "finding") state.choices[key] = "TOP";
+  else delete state.choices[key];
+}
+
+function normalizeChoice(key) {
+  if (key.startsWith("muscle:") && key.endsWith(":tone")) {
+    const item = key.split(":")[1];
+    if (state.choices[key] === "Normal") delete state.choices[`muscle:${item}:side`];
+  }
 }
 
 function renderChoices() {
@@ -177,6 +252,22 @@ function renderChoices() {
       const active = Array.isArray(current) ? current.includes(button.dataset.value) : current === button.dataset.value;
       button.classList.toggle("is-selected", active);
       button.setAttribute("aria-pressed", String(active));
+    });
+  });
+  $$(".level-button[data-level]").forEach((button) => {
+    const value = state.choices[`level:${button.dataset.level}`] || "";
+    button.classList.toggle("is-selected", value === "finding");
+    button.classList.toggle("is-top", value === "TOP");
+    button.textContent = value === "TOP" ? `${button.dataset.level} TOP` : button.dataset.level;
+    button.setAttribute("aria-pressed", String(Boolean(value)));
+  });
+  muscleItems.forEach((item) => {
+    const sideGroup = document.querySelector(`[data-group="muscle:${CSS.escape(item)}:side"]`);
+    if (!sideGroup) return;
+    const tone = state.choices[`muscle:${item}:tone`];
+    const disabled = !tone || tone === "Normal";
+    sideGroup.querySelectorAll("button").forEach((button) => {
+      button.disabled = disabled;
     });
   });
 }
@@ -194,28 +285,92 @@ function abnormalEntries(prefix, normalValues = []) {
 }
 
 function muscleFindings() {
-  return abnormalEntries("muscle:");
+  return muscleItems.map((item) => {
+    const tone = state.choices[`muscle:${item}:tone`];
+    if (!tone || tone === "Normal") return "";
+    const side = state.choices[`muscle:${item}:side`];
+    return `${item}: ${tone}${side ? ` ${side}` : ""}`;
+  }).filter(Boolean);
 }
 
 function orthoFindings() {
-  return abnormalEntries("ortho:").filter((line) => line.includes("+") || line.includes("AbN"));
+  return [
+    ...abnormalEntries("ortho:").filter((line) => line.includes("+") || line.includes("AbN")),
+    ...motionFindings()
+  ];
 }
 
 function neuroFindings() {
   return [
-    ...abnormalEntries("reflex:"),
-    ...abnormalEntries("cranial:", ["UR"]),
-    ...abnormalEntries("compression:", ["UR"])
+    ...dtrMotorSensationFindings(),
+    ...cranialFindings(),
+    ...compressionFindings()
   ];
+}
+
+function dtrMotorSensationFindings() {
+  return [
+    ...dtrFindings(),
+    ...motorFindings(),
+    ...sensationFindings()
+  ];
+}
+
+function cranialFindings() {
+  return abnormalEntries("cranial:", ["UR"]);
+}
+
+function compressionFindings() {
+  return abnormalEntries("compression:", ["UR"]);
+}
+
+function motionFindings() {
+  return cervicalMotionItems.map((item) => {
+    const value = state.choices[`motion:${item}`] || [];
+    const decreased = Array.isArray(value) ? value.filter((entry) => entry.includes("decreased")) : [];
+    return decreased.length ? `${item}: ${decreased.join(", ")}` : "";
+  }).filter(Boolean);
+}
+
+function dtrFindings() {
+  return dtrItems.flatMap((item) => ["L", "R"].map((side) => {
+    const value = state.choices[`dtr:${item}:${side}`];
+    return value && value !== "2+" ? `${item} DTR ${side}: ${value}` : "";
+  })).filter(Boolean);
+}
+
+function motorFindings() {
+  return motorItems.flatMap((item) => ["L", "R"].map((side) => {
+    const value = state.choices[`motor:${item}:${side}`];
+    return value && value !== "5/5" ? `${item} motor ${side}: ${value}` : "";
+  })).filter(Boolean);
+}
+
+function sensationFindings() {
+  return sensationItems.flatMap((item) => ["L", "R"].map((side) => {
+    const value = state.choices[`sensation:${item}:${side}`];
+    return value === "Decreased" ? `${item} sensation ${side}: decreased` : "";
+  })).filter(Boolean);
 }
 
 function levelFindings() {
   return levels.map((level) => {
-    const side = choiceValue(`level:${level}:side`);
-    const top = choiceValue(`level:${level}:top`);
-    if (!side && !top) return "";
-    return [level, side, top].filter(Boolean).join(" ");
+    const value = state.choices[`level:${level}`];
+    if (!value) return "";
+    return value === "TOP" ? `${level} TOP` : level;
   }).filter(Boolean);
+}
+
+function allDtrMotorSensationNormal() {
+  return [
+    ...dtrItems.flatMap((item) => [`dtr:${item}:L`, `dtr:${item}:R`].map((key) => state.choices[key] === "2+")),
+    ...motorItems.flatMap((item) => [`motor:${item}:L`, `motor:${item}:R`].map((key) => state.choices[key] === "5/5")),
+    ...sensationItems.flatMap((item) => [`sensation:${item}:L`, `sensation:${item}:R`].map((key) => state.choices[key] === "Normal"))
+  ].every(Boolean);
+}
+
+function allCranialNormal() {
+  return cranialItems.every((item) => state.choices[`cranial:${item}`] === "UR");
 }
 
 function buildSummary() {
@@ -232,15 +387,18 @@ function buildSummary() {
     `Doctor: ${fields.doctor || "Not documented"}`,
     "",
     "Cervical / Dorsolumbar",
-    `FHP: ${fields.fhpCm || "Not documented"} cm; grade ${choiceValue("fhpGrade") || "Not documented"}`,
+    `FHP grade: ${choiceValue("fhpGrade") || "Not documented"}`,
     `Trap tension: ${fields.trapTension || "Not documented"}/10`,
     `Occipital trigger: ${fields.occTrigger || "Not documented"}/10`,
-    `Swayback: ${fields.swaybackCm || "Not documented"} cm; grade ${choiceValue("swaybackGrade") || "Not documented"}`,
+    `Swayback grade: ${choiceValue("swaybackGrade") || "Not documented"}`,
     `Foot flare: ${choiceValue("footFlare") || "Not documented"}`,
     `Glute trigger: ${fields.glutTrigger || "Not documented"}/10`,
     "",
     "Postural Analysis",
     posture.length ? posture.join("\n") : "No abnormal posture findings documented.",
+    "",
+    "Functional Checks",
+    abnormalEntries("functional:", ["N"]).length ? abnormalEntries("functional:", ["N"]).join("\n") : "No abnormal functional checks documented.",
     "",
     "Kinesiopathology",
     levelFindings().length ? levelFindings().join("\n") : "No segmental findings documented.",
@@ -251,11 +409,15 @@ function buildSummary() {
     "Orthopaedic Tests Positives",
     orthoFindings().length ? orthoFindings().join("\n") : "No positive orthopaedic findings documented.",
     `Apley's: L ${fields.apleyL || "-"} in, R ${fields.apleyR || "-"} in`,
-    `C/S rotation: L ${fields.csRotationL || "-"} in, R ${fields.csRotationR || "-"} in`,
-    `C/S lateral flexion: L ${fields.csLatFlexL || "-"} in, R ${fields.csLatFlexR || "-"} in`,
     "",
-    "Neurological Positives",
-    neuroFindings().length ? neuroFindings().join("\n") : "No positive neurological findings documented.",
+    "DTR / Motor / Sensation",
+    dtrMotorSensationFindings().length ? dtrMotorSensationFindings().join("\n") : allDtrMotorSensationNormal() ? "All normal." : "No abnormal DTR, motor, or sensation findings documented.",
+    "",
+    "Neurological Assessment",
+    cranialFindings().length ? cranialFindings().join("\n") : allCranialNormal() ? "All normal / UR." : "No abnormal neurological assessment findings documented.",
+    "",
+    "Compression Tests",
+    compressionFindings().length ? compressionFindings().join("\n") : "No abnormal compression test findings documented.",
     "",
     "Gait",
     choiceValue("gait") || "Not documented",
@@ -392,6 +554,16 @@ function bindActions() {
   $("#saveExam").addEventListener("click", () => saveExam("Exam saved."));
   $("#exportExam").addEventListener("click", exportExam);
   $("#printExam").addEventListener("click", () => window.print());
+  $("#allNeuroNormal").addEventListener("click", () => {
+    setAllDtrMotorSensationNormal();
+    render();
+    scheduleAutosave();
+  });
+  $("#allCranialNormal").addEventListener("click", () => {
+    setAllCranialNormal();
+    render();
+    scheduleAutosave();
+  });
   $("#copyExam").addEventListener("click", async () => {
     await navigator.clipboard.writeText($("#summaryText").textContent);
     setStatus("Exam copied.");
@@ -399,11 +571,33 @@ function bindActions() {
   $("#clearExam").addEventListener("click", clearSaved);
 }
 
+function setAllDtrMotorSensationNormal() {
+  dtrItems.forEach((item) => {
+    state.choices[`dtr:${item}:L`] = "2+";
+    state.choices[`dtr:${item}:R`] = "2+";
+  });
+  motorItems.forEach((item) => {
+    state.choices[`motor:${item}:L`] = "5/5";
+    state.choices[`motor:${item}:R`] = "5/5";
+  });
+  sensationItems.forEach((item) => {
+    state.choices[`sensation:${item}:L`] = "Normal";
+    state.choices[`sensation:${item}:R`] = "Normal";
+  });
+}
+
+function setAllCranialNormal() {
+  cranialItems.forEach((item) => {
+    state.choices[`cranial:${item}`] = "UR";
+  });
+}
+
 mountPosture();
+mountFunctionalChecks();
 mountLevels();
 mountMuscles();
 mountOrthos();
-mountReflexes();
+mountDtrMotorSensation();
 mountCranial();
 mountCompression();
 bindChoiceGroups();

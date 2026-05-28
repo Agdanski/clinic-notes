@@ -60,10 +60,6 @@
           </div>
           <div class="exam-inline">
             <label>
-              <span>FHP cm</span>
-              <input name="fhpCm" inputmode="decimal">
-            </label>
-            <label>
               <span>FHP grade</span>
               <span class="choice-group inline" data-group="fhpGrade">
                 <button type="button" data-value="1">1</button>
@@ -91,10 +87,6 @@
             <span>Swayback, flare, glute</span>
           </div>
           <div class="exam-inline">
-            <label>
-              <span>Swayback cm</span>
-              <input name="swaybackCm" inputmode="decimal">
-            </label>
             <label>
               <span>Swayback grade</span>
               <span class="choice-group inline" data-group="swaybackGrade">
@@ -131,8 +123,16 @@
 
       <section class="exam-section">
         <div class="section-head">
+          <h2>Functional Checks</h2>
+          <span>Non-postural checks</span>
+        </div>
+        <div class="exam-choice-table" id="functionalGrid"></div>
+      </section>
+
+      <section class="exam-section">
+        <div class="section-head">
           <h2>Kinesiopathology</h2>
-          <span>Segment side and TOP</span>
+          <span>Click once for finding, twice for TOP</span>
         </div>
         <div class="level-picker" id="levelGrid"></div>
       </section>
@@ -140,7 +140,7 @@
       <section class="exam-section">
         <div class="section-head">
           <h2>Myopathology</h2>
-          <span>Left/right findings</span>
+          <span>Normal / hyper / hypo</span>
         </div>
         <div class="exam-choice-table muscle-table" id="muscleGrid"></div>
       </section>
@@ -154,10 +154,6 @@
         <div class="measure-grid">
           <label><span>Apley's L inches</span><input name="apleyL" inputmode="decimal"></label>
           <label><span>Apley's R inches</span><input name="apleyR" inputmode="decimal"></label>
-          <label><span>C/S rotation L inches</span><input name="csRotationL" inputmode="decimal"></label>
-          <label><span>C/S rotation R inches</span><input name="csRotationR" inputmode="decimal"></label>
-          <label><span>C/S lateral flexion L inches</span><input name="csLatFlexL" inputmode="decimal"></label>
-          <label><span>C/S lateral flexion R inches</span><input name="csLatFlexR" inputmode="decimal"></label>
         </div>
       </section>
 
@@ -165,15 +161,26 @@
         <section class="exam-section">
           <div class="section-head">
             <h2>DTR / Motor / Sensation</h2>
-            <span>Document abnormal only</span>
+            <button type="button" class="section-action" id="allNeuroNormal">All normal</button>
           </div>
-          <div class="exam-choice-table neuro-table" id="reflexGrid"></div>
+          <div class="neuro-subsection">
+            <h3>DTR</h3>
+            <div class="exam-choice-table neuro-table" id="dtrGrid"></div>
+          </div>
+          <div class="neuro-subsection">
+            <h3>Motor</h3>
+            <div class="exam-choice-table neuro-table" id="motorGrid"></div>
+          </div>
+          <div class="neuro-subsection">
+            <h3>Sensation</h3>
+            <div class="exam-choice-table neuro-table" id="sensationGrid"></div>
+          </div>
         </section>
 
         <section class="exam-section">
           <div class="section-head">
             <h2>Neurological Assessment</h2>
-            <span>UR / AbN</span>
+            <button type="button" class="section-action" id="allCranialNormal">All normal</button>
           </div>
           <div class="exam-choice-table neuro-table" id="cranialGrid"></div>
         </section>
