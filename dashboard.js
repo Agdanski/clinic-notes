@@ -1,5 +1,6 @@
 const INITIAL_STORAGE_KEY = "clinic-initial-visit-records-v1";
 const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
+const CONSENT_STORAGE_KEY = "clinic-informed-consents-v1";
 
 const adultSixMonthSymptoms = [
   "Headaches", "Migraines", "Back Pain", "Neck Pain", "Pins & Needles in Arms", "Pins & Needles in Legs",
@@ -43,8 +44,21 @@ const familyHistoryItems = [
   "Heart Disease", "Heart disease", "Stroke", "Cancer", "Arthritis", "Diabetes", "Hypertension",
   "Osteoarthritis", "Osteoporosis", "Disc disease", "Migraines", "Headaches", "Scoliosis"
 ];
+const janeSymptomItems = [
+  ...adultSixMonthSymptoms,
+  "Headache", "Neck pain", "Pain between shoulders", "Low back pain", "Knee pain", "Foot pain",
+  "Spinal curvature", "Joint pain", "Stiffness in joints", "General stiffness", "Arthritis",
+  "Walking problems", "Vision problems", "Ear aches", "Hearing difficulty", "Chest pain",
+  "Difficulty breathing", "High/low blood pressure"
+];
+const janePreviousItems = [
+  "Childhood traumas", "Sports injuries", "Falls", "Broken bones", "Workplace injury",
+  "Motor vehicle accidents", "Surgeries", "Heavy lifting", "Repetitive strain",
+  "Overhead work", "Prolonged sitting/standing", "Computer/desk work"
+];
 
 const $ = (selector) => document.querySelector(selector);
+let lastMappedConsent = null;
 
 function setStatus(message) {
   $("#statusLine").textContent = message;
@@ -69,6 +83,11 @@ function escapeRegex(value) {
 function normalizeText(text) {
   return String(text || "")
     .replace(/\r/g, "")
+    .replace(/\uFB00/g, "ff")
+    .replace(/\uFB01/g, "fi")
+    .replace(/\uFB02/g, "fl")
+    .replace(/\uFB03/g, "ffi")
+    .replace(/\uFB04/g, "ffl")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -173,6 +192,116 @@ function appendIfValue(lines, title, value) {
   if (value) lines.push(`${title}: ${value}`);
 }
 
+function textLines(text) {
+  return normalizeText(text).split("\n").map((line) => cleanValue(line)).filter(Boolean);
+}
+
+function isJaneNoiseLine(line) {
+  return (
+    /^=+ PAGE \d+ =+$/i.test(line) ||
+    /^\d{1,2}\/\d{1,2}\/\d{2,4},/.test(line) ||
+    /^https?:\/\//i.test(line) ||
+    /^Gdanski Chiropractic Clinic$/i.test(line) ||
+    /^Edit Close preview$/i.test(line) ||
+    /^Select an option/i.test(line) ||
+    /^Select a /i.test(line) ||
+    /^Questionnaires .* Step/i.test(line) ||
+    /^Consents .* Step/i.test(line) ||
+    /^Profile Information .* Step/i.test(line) ||
+    /^You are completing/i.test(line) ||
+    /^You are filling out/i.test(line) ||
+    /^Only staff members/i.test(line) ||
+    /^Terms of Use/i.test(line) ||
+    /^Privacy Policy/i.test(line) ||
+    line === "Yes" ||
+    line === "No" ||
+    line === "Yes No" ||
+    line === "Draw Type" ||
+    /^Canada$/i.test(line) ||
+    /^C$/.test(line) ||
+    /^xx$/i.test(line) ||
+    /^xxxx$/i.test(line)
+  );
+}
+
+function stripRequired(label) {
+  return String(label || "").replace(/\s*(?:\u2013|-)\s*Required\s*$/i, "").replace(/\*$/, "").trim();
+}
+
+function isStopLabel(line, stopLabels) {
+  const normalized = stripRequired(line).toLowerCase();
+  return stopLabels.some((label) => normalized === label.toLowerCase() || normalized.startsWith(`${label.toLowerCase()}:`));
+}
+
+function janeValueAfter(text, labels, stopLabels = []) {
+  const lines = textLines(text);
+  const labelList = labels.map((label) => label.toLowerCase());
+  for (let index = 0; index < lines.length; index += 1) {
+    const stripped = stripRequired(lines[index]);
+    const lower = stripped.toLowerCase();
+    const label = labelList.find((item) => lower === item || lower.startsWith(`${item}:`) || lower.startsWith(`${item} `));
+    if (!label) continue;
+
+    const sameLine = cleanValue(stripped.slice(label.length).replace(/^[:?]/, ""));
+    if (sameLine && !isJaneNoiseLine(sameLine) && !/required$/i.test(sameLine)) return sameLine;
+
+    const values = [];
+    for (let next = index + 1; next < lines.length; next += 1) {
+      const candidate = lines[next];
+      if (isStopLabel(candidate, [...stopLabels, ...labels])) break;
+      if (isJaneNoiseLine(candidate)) continue;
+      if (/required$/i.test(candidate)) continue;
+      values.push(candidate);
+      if (values.length >= 6) break;
+    }
+    return cleanValue(values.join("; "));
+  }
+  return "";
+}
+
+function janePatientName(text) {
+  const full = janeValueAfter(text, ["Patient Name", "Name"], ["New patients", "First Name", "Email"]);
+  const first = janeValueAfter(text, ["First Name"], ["Last Name", "Email", "Preferred Name"]);
+  const last = janeValueAfter(text, ["Last Name"], ["Email", "Preferred Name", "Prefix / Title", "Pronouns"]);
+  const combined = [first, last].filter(Boolean).join(" ");
+  if (combined) return combined;
+  return /new patients are required|first name|email|required/i.test(full) ? "" : full;
+}
+
+function janeDob(text) {
+  const direct = parseDate(janeValueAfter(text, ["Date of Birth"], ["Gender", "Sex", "Occupation", "Guardian"]));
+  if (direct) return direct;
+  const snippet = sectionText(text, ["Date of Birth"], ["Gender", "Sex", "Occupation", "Guardian"], "");
+  const monthMap = {
+    january: "01", jan: "01", february: "02", feb: "02", march: "03", mar: "03", april: "04", apr: "04",
+    may: "05", june: "06", jun: "06", july: "07", jul: "07", august: "08", aug: "08",
+    september: "09", sep: "09", october: "10", oct: "10", november: "11", nov: "11", december: "12", dec: "12"
+  };
+  const match = snippet.match(/Month\s+([A-Za-z]+|\d{1,2})\s+Day\s+(\d{1,2})\s+Year\s+(\d{4})/i);
+  if (!match || /select/i.test(match[1])) return "";
+  const month = monthMap[match[1].toLowerCase()] || match[1].padStart(2, "0");
+  return `${match[3]}-${month}-${match[2].padStart(2, "0")}`;
+}
+
+function janeYesNo(text, label) {
+  const answer = janeValueAfter(text, [label], ["If yes", "If Yes", "Please", "What", "Have you", "Has the"]);
+  if (/^yes\b/i.test(answer)) return "Y";
+  if (/^no\b/i.test(answer)) return "N";
+  return yesNoNear(text, label);
+}
+
+function selectedFromJaneAnswer(answer, items) {
+  const text = cleanValue(answer);
+  if (!text) return [];
+  const matches = items.filter((item) => new RegExp(`\\b${escapeRegex(item).replace(/\s+/g, "\\s+")}\\b`, "i").test(text));
+  return matches.length > 12 ? [] : Array.from(new Set(matches));
+}
+
+function janeListAnswer(text, label, items, stopLabels) {
+  const answer = janeValueAfter(text, [label], stopLabels);
+  return selectedFromJaneAnswer(answer, items);
+}
+
 function parseAdult(text) {
   const patientName = valueAfter(text, ["NAME", "Name"]);
   const dob = parseDate(valueAfter(text, ["Birthdate", "Birth date", "Date of Birth"]));
@@ -270,6 +399,152 @@ function parseChild(text) {
     contraindications: "",
     familyHistory: Array.from(new Set(family.map(normalizeFamilyHistory))).join(", "),
     strokeRiskFlags: Array.from(new Set(family)).join(", ")
+  };
+}
+
+function parseJaneAdultLike(text) {
+  const patientName = janePatientName(text);
+  const dob = janeDob(text);
+  const patientAge = calculateAge(dob);
+  const recentXray = janeYesNo(text, "Have you had x-rays taken in the last 6 months?");
+  const xrayDetails = janeValueAfter(text, ["If yes, which location and date X-rays taken"], ["Other diagnostic imaging", "Please check"]);
+  const xrayDate = parseDate(xrayDetails);
+
+  const symptoms = [
+    ...checkedItems(text, janeSymptomItems),
+    ...janeListAnswer(text, "Please check any of the following you have had in the last 6 months", janeSymptomItems, ["Medical history", "Have you been diagnosed"])
+  ];
+  const diagnoses = [
+    ...checkedItems(sectionText(text, ["Have you been diagnosed"], ["Have you ever experienced", "Were you ever a smoker"], ""), adultDiagnosisFlags),
+    ...janeListAnswer(text, "Have you been diagnosed with or told you have any of the following", adultDiagnosisFlags, ["Have you ever experienced"])
+  ];
+  const strokeFlags = [
+    ...checkedItems(sectionText(text, ["Have you ever experienced"], ["Were you ever a smoker", "Please list any medications"], ""), adultStrokeScreenFlags),
+    ...janeListAnswer(text, "Have you ever experienced any of the following", adultStrokeScreenFlags, ["Were you ever a smoker"])
+  ];
+  const family = [
+    ...checkedItems(sectionText(text, ["Indicate if YOU or any IMMEDIATE FAMILY"], ["Current Health Conditions", "What is your primary complaint"], ""), familyHistoryItems),
+    ...janeListAnswer(text, "Indicate if YOU or any IMMEDIATE FAMILY member have had any of the following", familyHistoryItems, ["If you selected yes", "Current Health Conditions"])
+  ];
+  const smoker = janeYesNo(text, "Were you ever a smoker");
+
+  const chiefComplaint = [];
+  appendIfValue(chiefComplaint, "Primary complaint", janeValueAfter(text, ["What is your primary complaint"], ["Describe the location", "When did this condition", "Yes No"]));
+  appendIfValue(chiefComplaint, "Location", janeValueAfter(text, ["Describe the location of your symptoms"], ["When did this condition begin"]));
+  appendIfValue(chiefComplaint, "Onset", janeValueAfter(text, ["When did this condition begin"], ["Has this condition occurred before"]));
+  appendIfValue(chiefComplaint, "Occurred before", janeValueAfter(text, ["Has this condition occurred before"], ["What aggravates your condition"]));
+  appendIfValue(chiefComplaint, "Aggravates", janeValueAfter(text, ["What aggravates your condition"], ["What relieves your condition"]));
+  appendIfValue(chiefComplaint, "Relieves", janeValueAfter(text, ["What relieves your condition"], ["Is it getting"]));
+  appendIfValue(chiefComplaint, "Status", janeValueAfter(text, ["Is it getting"], ["Describe the discomfort"]));
+  appendIfValue(chiefComplaint, "Pain/discomfort", janeValueAfter(text, ["Describe the discomfort and any areas or pain"], ["Rate the severity"]));
+  appendIfValue(chiefComplaint, "Severity", janeValueAfter(text, ["Rate the severity of your pain"], ["Character of pain"]));
+  appendIfValue(chiefComplaint, "Character", janeValueAfter(text, ["Character of pain"], ["Other treatment"]));
+
+  const previous = [
+    ...checkedItems(text, janePreviousItems),
+    ...janeListAnswer(text, "Check any of the following you have had previously", janePreviousItems, ["If you answered yes", "What type of physical stress"])
+  ];
+  const history = [];
+  history.push(mergeLine("Past 6 months", symptoms));
+  appendIfValue(history, "Other treatments tried", janeValueAfter(text, ["Other treatment(s) tried for this condition"], ["What activities"]));
+  appendIfValue(history, "Activities prevented", janeValueAfter(text, ["What activities does this prevent you from doing"], ["Check any", "Previous"]));
+  history.push(mergeLine("Previous", previous));
+  appendIfValue(history, "Previous details", janeValueAfter(text, ["If you answered yes to the to any in the previous question", "If you answered yes to any Previous"], ["What type of physical stress", "Is there anything preventing"]));
+  appendIfValue(history, "Physical stress", janeValueAfter(text, ["What type of physical stress do you have at home/work"], ["Lifestyle Stress Levels"]));
+
+  const contraindications = [];
+  if (smoker === "Y") contraindications.push("Current or former smoker reported");
+  contraindications.push(mergeLine("Diagnosed/told", diagnoses));
+  contraindications.push(mergeLine("Stroke risk review flags", strokeFlags));
+
+  return {
+    patientName,
+    dob,
+    patientAge,
+    recentXray,
+    xrayDate,
+    xrayLocation: xrayDetails,
+    chiefComplaint: chiefComplaint.filter(Boolean).join("\n"),
+    historyNotes: history.filter(Boolean).join("\n"),
+    contraindications: contraindications.filter(Boolean).join("\n"),
+    familyHistory: Array.from(new Set(family.map(normalizeFamilyHistory))).join(", "),
+    strokeRiskFlags: Array.from(new Set([...diagnoses, ...strokeFlags, ...family])).join(", ")
+  };
+}
+
+function parseJaneChild(text) {
+  const patientName = janePatientName(text);
+  const dob = janeDob(text);
+  const patientAge = calculateAge(dob);
+  const family = [
+    ...checkedItems(sectionText(text, ["Family Medical History"], ["Thank you for completing"], ""), familyHistoryItems),
+    ...janeListAnswer(text, "Has anyone in your family had any of the following diseases/conditions", familyHistoryItems, ["If cancer", "Thank you"])
+  ];
+  const symptoms = checkedItems(text, childSymptoms);
+  const diseases = [
+    ...checkedItems(text, childDiseases),
+    ...janeListAnswer(text, "Has the child had any of the following infectious childhood disease", childDiseases, ["If other", "Current medications"])
+  ];
+  const trauma = [
+    ...checkedItems(text, childTrauma),
+    ...janeListAnswer(text, "Has the child ever had any of the following", childTrauma, ["Does the child experience", "Family Medical History"])
+  ];
+
+  const chiefComplaint = [];
+  appendIfValue(chiefComplaint, "Major", janeValueAfter(text, ["Major"], ["Minor"]));
+  appendIfValue(chiefComplaint, "Minor", janeValueAfter(text, ["Minor"], ["When did this/these begin"]));
+  appendIfValue(chiefComplaint, "Onset", janeValueAfter(text, ["When did this/these begin"], ["Is this complaint getting"]));
+  appendIfValue(chiefComplaint, "Status", janeValueAfter(text, ["Is this complaint getting"], ["Is it"]));
+  appendIfValue(chiefComplaint, "Radiation", janeValueAfter(text, ["Does this problem radiate"], ["If yes, where"]));
+  appendIfValue(chiefComplaint, "Radiates to", janeValueAfter(text, ["If yes, where"], ["What makes this better"]));
+  appendIfValue(chiefComplaint, "Better", janeValueAfter(text, ["What makes this better"], ["What makes this worse"]));
+  appendIfValue(chiefComplaint, "Worse", janeValueAfter(text, ["What makes this worse"], ["Is the problem worse"]));
+
+  const history = [];
+  history.push(mergeLine("Child symptoms", symptoms));
+  history.push(mergeLine("Childhood diseases", diseases));
+  history.push(mergeLine("Trauma/injury", trauma));
+  appendIfValue(history, "Hospitalized", janeValueAfter(text, ["Has the child ever been hospitalized"], ["If Yes - provide reasons"]));
+  appendIfValue(history, "Hospital details", janeValueAfter(text, ["If Yes - provide reasons/details"], ["Has the child ever had surgery"]));
+  appendIfValue(history, "Surgery", janeValueAfter(text, ["Has the child ever had surgery"], ["If Yes - provide reasons"]));
+  appendIfValue(history, "Adverse vaccine reactions", janeValueAfter(text, ["Any adverse reactions to vaccines"], ["If Yes - please describe"]));
+  appendIfValue(history, "Major falls", janeValueAfter(text, ["Major falls"], ["Been involved in any car accidents"]));
+  appendIfValue(history, "Car accidents", janeValueAfter(text, ["Been involved in any car accidents"], ["Does the child experience"]));
+  appendIfValue(history, "Additional notes", janeValueAfter(text, ["write them here"], ["Consents"]));
+
+  return {
+    patientName,
+    dob,
+    patientAge,
+    recentXray: janeYesNo(text, "Previous x-rays"),
+    xrayDate: "",
+    xrayLocation: "",
+    chiefComplaint: chiefComplaint.filter(Boolean).join("\n"),
+    historyNotes: history.filter(Boolean).join("\n"),
+    contraindications: "",
+    familyHistory: Array.from(new Set(family.map(normalizeFamilyHistory))).join(", "),
+    strokeRiskFlags: Array.from(new Set(family)).join(", ")
+  };
+}
+
+function parseJaneConsent(text) {
+  const isPreview = /Close preview|\/preview\b/i.test(text);
+  return {
+    target: "consent",
+    patientName: janePatientName(text),
+    dob: janeDob(text),
+    patientAge: calculateAge(janeDob(text)),
+    recentXray: "",
+    xrayDate: "",
+    xrayLocation: "",
+    chiefComplaint: "",
+    historyNotes: "Jane consent form imported.",
+    contraindications: "",
+    familyHistory: "",
+    strokeRiskFlags: "",
+    consentAccepted: !isPreview && /I hereby acknowledge|I consent to chiropractic treatment|Patient Signature/i.test(text),
+    claimConfirm: !isPreview && /NOT related to an active MVA|active Personal Injury|reports will NOT be sent to lawyers/i.test(text),
+    janePatientSignature: !isPreview && /Patient Signature/i.test(text)
   };
 }
 
@@ -394,6 +669,47 @@ function initialSummary(fields, choices) {
   ].join("\n");
 }
 
+function consentRecord(data) {
+  const fields = {
+    patientName: data.patientName,
+    dob: data.dob,
+    patientAge: data.patientAge,
+    consentDate: todayIso(),
+    patientPrintedName: data.patientName,
+    chiropractorName: "",
+    claimConfirm: Boolean(data.claimConfirm),
+    patientAccept: Boolean(data.consentAccepted)
+  };
+  return {
+    id: `consent-${slug(data.patientName)}`,
+    fields,
+    patientSignature: "",
+    doctorSignature: "",
+    janePatientSignature: Boolean(data.janePatientSignature),
+    completed: false,
+    summary: [
+      "Gdanski Chiropractic Clinic",
+      "Consent To Chiropractic Treatment",
+      "",
+      `Patient: ${fields.patientName || "Not documented"}`,
+      `DOB: ${fields.dob || "Not documented"}`,
+      `Age: ${fields.patientAge || "Not documented"}`,
+      `Consent date: ${fields.consentDate || "Not documented"}`,
+      "",
+      "Jane Import",
+      `Claim confirmation: ${fields.claimConfirm ? "Accepted in Jane" : "Not detected"}`,
+      `Treatment consent: ${fields.patientAccept ? "Accepted in Jane" : "Not detected"}`,
+      `Patient signature: ${data.janePatientSignature ? "Imported from Jane PDF" : "Not detected"}`,
+      "Chiropractor signature: Not signed in this app"
+    ].join("\n"),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function previewData() {
   return {
     patientName: $("#patientName").value.trim(),
@@ -425,6 +741,10 @@ function applyImport() {
     setStatus("Patient name is required before applying.");
     return;
   }
+  if ($("#formType").value === "janeConsent") {
+    applyConsentImport(data);
+    return;
+  }
   const record = initialRecord(data);
   const initials = readJson(INITIAL_STORAGE_KEY, []).filter((item) => item.id !== record.id);
   writeJson(INITIAL_STORAGE_KEY, [record, ...initials].slice(0, 50));
@@ -449,6 +769,33 @@ function applyImport() {
   writeJson(PROFILE_STORAGE_KEY, profiles);
   updateLinks();
   setStatus("Imported into this browser. Open Initial, Consent, Exam, or SOAP to review.");
+}
+
+function applyConsentImport(data) {
+  const record = consentRecord({
+    ...data,
+    consentAccepted: lastMappedConsent?.consentAccepted,
+    claimConfirm: lastMappedConsent?.claimConfirm,
+    janePatientSignature: lastMappedConsent?.janePatientSignature
+  });
+  const consents = readJson(CONSENT_STORAGE_KEY, []).filter((item) => item.id !== record.id);
+  writeJson(CONSENT_STORAGE_KEY, [record, ...consents].slice(0, 75));
+
+  const profiles = readJson(PROFILE_STORAGE_KEY, {});
+  const key = patientKey(data.patientName);
+  profiles[key] = {
+    ...(profiles[key] || {}),
+    patientName: data.patientName,
+    dob: data.dob,
+    patientAge: data.patientAge,
+    consentCompleted: false,
+    consentImportedFromJane: true,
+    consentDate: record.fields.consentDate,
+    consentUpdatedAt: record.updatedAt
+  };
+  writeJson(PROFILE_STORAGE_KEY, profiles);
+  updateLinks();
+  setStatus("Jane consent imported. Open Consent for chiropractor review/signature.");
 }
 
 function updateLinks() {
@@ -491,7 +838,7 @@ async function extractPdfText(file) {
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
     const content = await page.getTextContent();
-    const text = content.items.map((item) => item.str).join(" ");
+    const text = content.items.map((item) => item.str).join("\n");
     if (text.trim().length > 40) pages.push(text);
     else if (window.Tesseract) pages.push(await ocrPdfPage(page));
   }
@@ -520,7 +867,16 @@ function parseText() {
     setStatus("Paste or extract text first.");
     return;
   }
-  const data = $("#formType").value === "adult" ? parseAdult(text) : parseChild(text);
+  const parser = {
+    adult: parseAdult,
+    child: parseChild,
+    janeAdult: parseJaneAdultLike,
+    janeTeen: parseJaneAdultLike,
+    janeChild: parseJaneChild,
+    janeConsent: parseJaneConsent
+  }[$("#formType").value] || parseJaneAdultLike;
+  const data = parser(text);
+  lastMappedConsent = data.target === "consent" ? data : null;
   writePreview(data);
   setStatus("Mapped fields. Please review before applying.");
 }

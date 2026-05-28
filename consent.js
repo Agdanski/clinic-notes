@@ -4,7 +4,8 @@ const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
 const state = {
   autosaveReady: false,
   patientSignatureDirty: false,
-  doctorSignatureDirty: false
+  doctorSignatureDirty: false,
+  janePatientSignature: false
 };
 
 let autosaveTimer = null;
@@ -192,18 +193,20 @@ function noteData() {
   const doctorCanvas = $("#doctorSignature");
   const patientSignature = signatureIsBlank(patientCanvas) ? "" : patientCanvas.toDataURL("image/png");
   const doctorSignature = signatureIsBlank(doctorCanvas) ? "" : doctorCanvas.toDataURL("image/png");
+  const patientSigned = Boolean(patientSignature || state.janePatientSignature);
   return {
     id: `consent-${slug(fields.patientName)}`,
     fields,
     patientSignature,
     doctorSignature,
-    completed: Boolean(fields.claimConfirm && fields.patientAccept && fields.patientPrintedName && fields.chiropractorName && patientSignature && doctorSignature),
-    summary: buildSummary(fields, patientSignature, doctorSignature),
+    janePatientSignature: state.janePatientSignature,
+    completed: Boolean(fields.claimConfirm && fields.patientAccept && fields.patientPrintedName && fields.chiropractorName && patientSigned && doctorSignature),
+    summary: buildSummary(fields, patientSignature, doctorSignature, state.janePatientSignature),
     updatedAt: new Date().toISOString()
   };
 }
 
-function buildSummary(fields = fieldsData(), patientSignature = "", doctorSignature = "") {
+function buildSummary(fields = fieldsData(), patientSignature = "", doctorSignature = "", janePatientSignature = false) {
   return [
     "Gdanski Chiropractic Clinic",
     "Consent To Chiropractic Treatment",
@@ -219,7 +222,7 @@ function buildSummary(fields = fieldsData(), patientSignature = "", doctorSignat
     "",
     "Signatures",
     `Patient/guardian printed name: ${fields.patientPrintedName || "Not documented"}`,
-    `Patient/guardian signature: ${patientSignature ? "Signed digitally" : "Not signed"}`,
+    `Patient/guardian signature: ${patientSignature ? "Signed digitally" : janePatientSignature ? "Imported from Jane PDF" : "Not signed"}`,
     `Chiropractor: ${fields.chiropractorName || "Not documented"}`,
     `Chiropractor signature: ${doctorSignature ? "Signed digitally" : "Not signed"}`,
     "",
@@ -235,6 +238,11 @@ function renderSummary() {
   const badge = document.createElement("span");
   badge.textContent = record.completed ? "Complete: ready to save" : "Draft: missing required acceptance/signature";
   $("#savedConsentStatus").appendChild(badge);
+  if (state.janePatientSignature) {
+    const imported = document.createElement("span");
+    imported.textContent = "Patient signature imported from Jane";
+    $("#savedConsentStatus").appendChild(imported);
+  }
 }
 
 function updateAge() {
@@ -305,6 +313,7 @@ function loadConsent(record) {
   $("#patientAccept").checked = Boolean(fields.patientAccept);
   clearSignature($("#patientSignature"), "patientSignatureDirty");
   clearSignature($("#doctorSignature"), "doctorSignatureDirty");
+  state.janePatientSignature = Boolean(record.janePatientSignature);
   drawSignatureImage($("#patientSignature"), record.patientSignature, renderSummary);
   drawSignatureImage($("#doctorSignature"), record.doctorSignature, renderSummary);
   state.patientSignatureDirty = Boolean(record.patientSignature);
