@@ -437,11 +437,26 @@ function loadInitialRecord(record) {
   setStatus("Initial visit loaded.");
 }
 
+function applyExamTransferFromProfile() {
+  const patient = patientKey($("#patientName").value);
+  if (!patient) return;
+  const profile = savedProfiles()[patient];
+  if (!profile) return;
+  const muscle = document.getElementsByName("examMuscleFindings")[0];
+  const neuro = document.getElementsByName("examNeuroFindings")[0];
+  if (muscle && profile.examMuscleFindings !== undefined) muscle.value = profile.examMuscleFindings || "";
+  if (neuro && profile.examNeuroFindings !== undefined) {
+    neuro.value = [profile.examNeuroFindings, profile.examOrthoFindings].filter(Boolean).join("; ");
+  }
+}
+
 function loadRequestedInitialFromUrl() {
   const patient = String(new URLSearchParams(window.location.search).get("patient") || "").trim().toLowerCase();
   if (!patient) return;
   const record = savedInitials().find((item) => patientKey(item?.fields?.patientName) === patient);
   if (record) loadInitialRecord(record);
+  else $("#patientName").value = new URLSearchParams(window.location.search).get("patient") || "";
+  applyExamTransferFromProfile();
 }
 
 function updateDateParts() {
@@ -502,4 +517,5 @@ updateDateParts();
 updateAge();
 setInitialDefaults();
 loadRequestedInitialFromUrl();
+applyExamTransferFromProfile();
 state.autosaveReady = true;

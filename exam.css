@@ -1,0 +1,107 @@
+.exam-shell {
+  max-width: 1320px;
+}
+
+.exam-sheet {
+  display: grid;
+  gap: 10px;
+}
+
+.exam-band,
+.exam-grid,
+.exam-inline,
+.measure-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.exam-band {
+  grid-template-columns: minmax(240px, 1.25fr) minmax(90px, 0.35fr) minmax(140px, 0.55fr) minmax(160px, 0.65fr);
+}
+
+.exam-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.exam-inline {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.exam-section {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.exam-choice-table {
+  display: grid;
+  gap: 6px;
+}
+
+.exam-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid #edf0ed;
+  border-radius: 7px;
+  background: #fbfcfc;
+}
+
+.exam-row strong {
+  font-size: 0.92rem;
+}
+
+.level-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 6px;
+}
+
+.level-card {
+  display: grid;
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fbfcfc;
+}
+
+.level-card strong {
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.level-card .choice-group {
+  justify-content: center;
+}
+
+.level-card button {
+  min-width: 34px;
+  min-height: 30px;
+  padding: 0 7px;
+}
+
+.measure-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+input[type="range"] {
+  padding: 0;
+}
+
+@media (max-width: 920px) {
+  .exam-band,
+  .exam-grid.two,
+  .exam-inline,
+  .measure-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .exam-row {
+    grid-template-columns: 1fr;
+  }
+}

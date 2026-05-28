@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VSC Exam Form</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="initial.css">
+  <link rel="stylesheet" href="exam.css">
+</head>
+<body>
+  <main class="app-shell exam-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="clinic-logo" src="assets/gdanski-chiropractic-logo-balanced.png" alt="Gdanski Chiropractic logo">
+      </div>
+      <div class="page-title">
+        <p class="eyebrow">VSC exam</p>
+        <h1>Examination</h1>
+      </div>
+      <div class="actions">
+        <a class="button-link" href="initial.html">Initial</a>
+        <a class="button-link" href="index.html">SOAP</a>
+        <a class="button-link" href="demo.html">Demo</a>
+        <button type="button" id="saveExam">Save</button>
+        <button type="button" id="exportExam">Export</button>
+        <button type="button" id="printExam">Print</button>
+      </div>
+    </header>
+
+    <section class="sheet exam-sheet">
+      <section class="exam-band">
+        <label class="patient-name">
+          <span>Patient name</span>
+          <input id="patientName" name="patientName" autocomplete="off">
+        </label>
+        <label>
+          <span>Age</span>
+          <input id="patientAge" name="patientAge" inputmode="numeric">
+        </label>
+        <label>
+          <span>Date</span>
+          <input id="examDate" name="examDate" type="date">
+        </label>
+        <label>
+          <span>Doctor</span>
+          <select id="doctor" name="doctor">
+            <option value=""></option>
+            <option>Dr. Allan</option>
+            <option>Dr. Daniel</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="exam-grid two">
+        <section class="exam-section">
+          <div class="section-head">
+            <h2>Cervical Spine</h2>
+            <span>FHP, traps, occiput</span>
+          </div>
+          <div class="exam-inline">
+            <label>
+              <span>FHP cm</span>
+              <input name="fhpCm" inputmode="decimal">
+            </label>
+            <label>
+              <span>FHP grade</span>
+              <span class="choice-group inline" data-group="fhpGrade">
+                <button type="button" data-value="1">1</button>
+                <button type="button" data-value="2">2</button>
+                <button type="button" data-value="3">3</button>
+                <button type="button" data-value="4+">4+</button>
+              </span>
+            </label>
+          </div>
+          <div class="exam-inline">
+            <label>
+              <span>Trap tension</span>
+              <input name="trapTension" type="range" min="1" max="10" value="1">
+            </label>
+            <label>
+              <span>Occipital trigger</span>
+              <input name="occTrigger" type="range" min="1" max="10" value="1">
+            </label>
+          </div>
+        </section>
+
+        <section class="exam-section">
+          <div class="section-head">
+            <h2>Dorsolumbar Spine</h2>
+            <span>Swayback, flare, glute</span>
+          </div>
+          <div class="exam-inline">
+            <label>
+              <span>Swayback cm</span>
+              <input name="swaybackCm" inputmode="decimal">
+            </label>
+            <label>
+              <span>Swayback grade</span>
+              <span class="choice-group inline" data-group="swaybackGrade">
+                <button type="button" data-value="1">1</button>
+                <button type="button" data-value="2">2</button>
+                <button type="button" data-value="3">3</button>
+                <button type="button" data-value="4+">4+</button>
+              </span>
+            </label>
+          </div>
+          <div class="exam-inline">
+            <label>
+              <span>Foot flare</span>
+              <span class="choice-group inline multi" data-group="footFlare">
+                <button type="button" data-value="L">L</button>
+                <button type="button" data-value="R">R</button>
+              </span>
+            </label>
+            <label>
+              <span>Glute trigger</span>
+              <input name="glutTrigger" type="range" min="1" max="10" value="1">
+            </label>
+          </div>
+        </section>
+      </section>
+
+      <section class="exam-section">
+        <div class="section-head">
+          <h2>Postural Analysis</h2>
+          <span>L / N / R</span>
+        </div>
+        <div class="exam-choice-table" id="postureGrid"></div>
+      </section>
+
+      <section class="exam-section">
+        <div class="section-head">
+          <h2>Kinesiopathology</h2>
+          <span>Segment side and TOP</span>
+        </div>
+        <div class="level-picker" id="levelGrid"></div>
+      </section>
+
+      <section class="exam-section">
+        <div class="section-head">
+          <h2>Myopathology</h2>
+          <span>Left/right findings</span>
+        </div>
+        <div class="exam-choice-table muscle-table" id="muscleGrid"></div>
+      </section>
+
+      <section class="exam-section">
+        <div class="section-head">
+          <h2>Orthopaedic Tests</h2>
+          <span>Positive / negative</span>
+        </div>
+        <div class="exam-choice-table ortho-table" id="orthoGrid"></div>
+        <div class="measure-grid">
+          <label><span>Apley's L inches</span><input name="apleyL" inputmode="decimal"></label>
+          <label><span>Apley's R inches</span><input name="apleyR" inputmode="decimal"></label>
+          <label><span>C/S rotation L inches</span><input name="csRotationL" inputmode="decimal"></label>
+          <label><span>C/S rotation R inches</span><input name="csRotationR" inputmode="decimal"></label>
+          <label><span>C/S lateral flexion L inches</span><input name="csLatFlexL" inputmode="decimal"></label>
+          <label><span>C/S lateral flexion R inches</span><input name="csLatFlexR" inputmode="decimal"></label>
+        </div>
+      </section>
+
+      <section class="exam-grid two">
+        <section class="exam-section">
+          <div class="section-head">
+            <h2>DTR / Motor / Sensation</h2>
+            <span>Document abnormal only</span>
+          </div>
+          <div class="exam-choice-table neuro-table" id="reflexGrid"></div>
+        </section>
+
+        <section class="exam-section">
+          <div class="section-head">
+            <h2>Neurological Assessment</h2>
+            <span>UR / AbN</span>
+          </div>
+          <div class="exam-choice-table neuro-table" id="cranialGrid"></div>
+        </section>
+      </section>
+
+      <section class="exam-grid two">
+        <section class="exam-section">
+          <div class="section-head">
+            <h2>Compression Tests</h2>
+            <span>UR / AbN</span>
+          </div>
+          <div class="exam-choice-table" id="compressionGrid"></div>
+        </section>
+        <section class="exam-section">
+          <div class="section-head">
+            <h2>Gait And Notes</h2>
+            <span>Exam notes</span>
+          </div>
+          <label>
+            <span>Gait</span>
+            <span class="choice-group inline multi" data-group="gait">
+              <button type="button" data-value="Normal">Normal</button>
+              <button type="button" data-value="Irregular">Irregular</button>
+              <button type="button" data-value="Impaired">Impaired</button>
+              <button type="button" data-value="Slow">Slow</button>
+              <button type="button" data-value="Hesitant">Hesitant</button>
+            </span>
+          </label>
+          <label>
+            <span>Notes</span>
+            <textarea name="examNotes" rows="6"></textarea>
+          </label>
+        </section>
+      </section>
+    </section>
+
+    <section class="summary-wrap">
+      <div class="summary-head">
+        <h2>Export / print exam text</h2>
+        <div>
+          <button type="button" id="copyExam">Copy</button>
+          <button type="button" id="clearExam">Clear saved exam</button>
+        </div>
+      </div>
+      <output id="statusLine" aria-live="polite"></output>
+      <pre id="summaryText"></pre>
+    </section>
+  </main>
+
+  <script src="exam.js"></script>
+</body>
+</html>

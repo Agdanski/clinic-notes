@@ -1,5 +1,6 @@
 const INITIAL_STORAGE_KEY = "clinic-initial-visit-records-v1";
 const SOAP_STORAGE_KEY = "clinic-repeat-soap-drafts-v2";
+const EXAM_STORAGE_KEY = "clinic-vsc-exam-records-v1";
 const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
 const DEMO_PATIENT = "Demo Patient - Taylor Brooks";
 const DEMO_KEY = "demo patient - taylor brooks";
@@ -195,7 +196,44 @@ const demoProfile = {
   subluxations: ["L5", "SI-R", "T6"],
   treatmentPlan: "Correction of VSC",
   doctor: "Dr. Allan",
+  examMuscleFindings: "Psoas: R hypo; Glut: R hypo",
+  examOrthoFindings: "SLR: R +",
+  examNeuroFindings: "",
+  examUpdatedAt: "2026-05-21T13:40:00.000Z",
   updatedAt: "2026-05-21T13:15:00.000Z"
+};
+
+const demoExamRecord = {
+  id: "exam-demo-patient-taylor-brooks",
+  fields: {
+    patientName: DEMO_PATIENT,
+    patientAge: "44",
+    examDate: "2026-05-21",
+    doctor: "Dr. Allan",
+    fhpCm: "3",
+    trapTension: "4",
+    occTrigger: "3",
+    swaybackCm: "2",
+    glutTrigger: "5",
+    examNotes: "Demo exam only. Findings selected to show transfer into initial form."
+  },
+  choices: {
+    fhpGrade: "2",
+    swaybackGrade: "1",
+    "posture:Hip high": "R",
+    "level:L5:side": ["R"],
+    "level:L5:top": ["TOP"],
+    "level:SI FIX:side": ["R"],
+    "muscle:Psoas": ["R hypo"],
+    "muscle:Glut": ["R hypo"],
+    "ortho:SLR": ["R +"],
+    gait: ["Slow"]
+  },
+  muscleFindings: "Psoas: R hypo; Glut: R hypo",
+  orthoFindings: "SLR: R +",
+  neuroFindings: "",
+  summary: "Gdanski Chiropractic Clinic\nVSC Examination\n\nPatient\nPatient: Demo Patient - Taylor Brooks\nAge: 44\nDate: 2026-05-21\nDoctor: Dr. Allan\n\nMyopathology Positives\nPsoas: R hypo\nGlut: R hypo\n\nOrthopaedic Tests Positives\nSLR: R +\n\nNotes\nDemo exam only. Findings selected to show transfer into initial form.",
+  updatedAt: "2026-05-21T13:40:00.000Z"
 };
 
 const demoSoapVisits = [
@@ -258,6 +296,9 @@ function seedDemoData() {
   const soapVisits = readJson(SOAP_STORAGE_KEY, []).filter((visit) => patientKey(visit.patientName) !== DEMO_KEY);
   writeJson(SOAP_STORAGE_KEY, [...demoSoapVisits, ...soapVisits].slice(0, 25));
 
+  const exams = readJson(EXAM_STORAGE_KEY, []).filter((record) => patientKey(record?.fields?.patientName) !== DEMO_KEY);
+  writeJson(EXAM_STORAGE_KEY, [demoExamRecord, ...exams].slice(0, 50));
+
   document.querySelector("#demoStatus").textContent = "Fake demo data loaded.";
 }
 
@@ -272,10 +313,14 @@ function removeDemoData() {
   const soapVisits = readJson(SOAP_STORAGE_KEY, []).filter((visit) => patientKey(visit.patientName) !== DEMO_KEY);
   writeJson(SOAP_STORAGE_KEY, soapVisits);
 
+  const exams = readJson(EXAM_STORAGE_KEY, []).filter((record) => patientKey(record?.fields?.patientName) !== DEMO_KEY);
+  writeJson(EXAM_STORAGE_KEY, exams);
+
   document.querySelector("#demoStatus").textContent = "Fake demo data removed.";
 }
 
 document.querySelector("#seedDemo").addEventListener("click", seedDemoData);
 document.querySelector("#removeDemo").addEventListener("click", removeDemoData);
 document.querySelector("#openInitialDemo").addEventListener("click", seedDemoData);
+document.querySelector("#openExamDemo").addEventListener("click", seedDemoData);
 document.querySelector("#openSoapDemo").addEventListener("click", seedDemoData);
