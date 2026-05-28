@@ -123,6 +123,49 @@
         </div>
       </section>
     </section>
+
+    <section class="sheet report-sheet">
+      <section class="dashboard-panel">
+        <div class="section-head">
+          <h2>Diagnostic Reports</h2>
+          <span>X-ray, MRI, CT, ultrasound</span>
+        </div>
+        <div class="field-grid three">
+          <label>
+            <span>Report type</span>
+            <select id="reportType">
+              <option>X-ray</option>
+              <option>MRI</option>
+              <option>CT</option>
+              <option>Ultrasound</option>
+              <option>Other imaging</option>
+            </select>
+          </label>
+          <label>
+            <span>Report date</span>
+            <input id="reportDate" type="date">
+          </label>
+          <label>
+            <span>Body area / location</span>
+            <input id="reportBodyArea" placeholder="Cervical spine, lumbar spine, knee, etc.">
+          </label>
+        </div>
+        <label>
+          <span>Upload report</span>
+          <input id="reportFile" type="file" accept="application/pdf,image/*,.txt,text/plain">
+        </label>
+        <div class="dashboard-actions">
+          <button type="button" id="extractReport">Extract report text</button>
+          <button type="button" id="applyReport">Save report to patient</button>
+        </div>
+        <output id="reportStatus" aria-live="polite"></output>
+        <label>
+          <span>Report text / notes</span>
+          <textarea id="reportText" rows="8" placeholder="Extracted report text appears here. Staff can edit or paste report findings before saving."></textarea>
+        </label>
+        <div id="reportList" class="report-list"></div>
+      </section>
+    </section>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>

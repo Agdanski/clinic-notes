@@ -1,6 +1,7 @@
 const INITIAL_STORAGE_KEY = "clinic-initial-visit-records-v1";
 const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
 const CONSENT_STORAGE_KEY = "clinic-informed-consents-v1";
+const DIAGNOSTIC_REPORT_STORAGE_KEY = "clinic-diagnostic-reports-v1";
 
 const adultSixMonthSymptoms = [
   "Headaches", "Migraines", "Back Pain", "Neck Pain", "Pins & Needles in Arms", "Pins & Needles in Legs",
@@ -804,6 +805,7 @@ function updateLinks() {
   $("#openConsent").href = patient ? `consent.html?patient=${patient}` : "consent.html";
   $("#openExam").href = patient ? `exam.html?patient=${patient}` : "exam.html";
   $("#openSoap").href = patient ? `index.html?patient=${patient}` : "index.html";
+  renderReportList();
 }
 
 async function extractTextFromFile() {
@@ -861,6 +863,173 @@ async function ocrImage(file) {
   return result.data.text;
 }
 
+function setReportStatus(message) {
+  $("#reportStatus").textContent = message;
+}
+
+function savedReports() {
+  return readJson(DIAGNOSTIC_REPORT_STORAGE_KEY, []);
+}
+
+function writeReports(reports) {
+  writeJson(DIAGNOSTIC_REPORT_STORAGE_KEY, reports.slice(0, 200));
+}
+
+function diagnosticReportSummary(record) {
+  return [
+    "Gdanski Chiropractic Clinic",
+    "Diagnostic Report",
+    "",
+    `Patient: ${record.patientName || "Not documented"}`,
+    `Type: ${record.reportType || "Not documented"}`,
+    `Date: ${record.reportDate || "Not documented"}`,
+    `Body area/location: ${record.bodyArea || "Not documented"}`,
+    `Source file: ${record.fileName || "Not documented"}`,
+    "",
+    "Report Text / Findings",
+    record.reportText || "Not documented"
+  ].join("\n");
+}
+
+function reportRecord() {
+  const patientName = $("#patientName").value.trim();
+  const reportType = $("#reportType").value;
+  const reportDate = $("#reportDate").value;
+  const bodyArea = $("#reportBodyArea").value.trim();
+  const reportText = $("#reportText").value.trim();
+  const file = $("#reportFile").files[0];
+  const id = `report-${slug(patientName)}-${Date.now()}`;
+  const record = {
+    id,
+    patientName,
+    reportType,
+    reportDate,
+    bodyArea,
+    fileName: file?.name || "",
+    reportText,
+    updatedAt: new Date().toISOString()
+  };
+  record.summary = diagnosticReportSummary(record);
+  return record;
+}
+
+function inferReportFields(text, fileName = "") {
+  const source = `${fileName}\n${text}`;
+  const date = parseDate(valueAfter(source, ["Report Date", "Exam Date", "Date of Exam", "Date"])) || parseDate(source);
+  const bodyAreas = [
+    "Cervical spine", "Thoracic spine", "Lumbar spine", "Sacrum", "Sacroiliac joints", "Pelvis",
+    "Shoulder", "Elbow", "Wrist", "Hand", "Hip", "Knee", "Ankle", "Foot", "Chest", "Abdomen"
+  ];
+  const found = bodyAreas.find((area) => new RegExp(escapeRegex(area), "i").test(source));
+  if (date && !$("#reportDate").value) $("#reportDate").value = date;
+  if (found && !$("#reportBodyArea").value) $("#reportBodyArea").value = found;
+}
+
+async function extractDiagnosticReport() {
+  const file = $("#reportFile").files[0];
+  if (!file) {
+    setReportStatus("Choose a diagnostic report first.");
+    return;
+  }
+  setReportStatus("Extracting report text.");
+  try {
+    let text = "";
+    if (file.type === "application/pdf" && window.pdfjsLib) {
+      text = await extractPdfText(file);
+    } else if (file.type.startsWith("image/") && window.Tesseract) {
+      text = await ocrImage(file);
+    } else {
+      text = await file.text();
+    }
+    $("#reportText").value = normalizeText(text);
+    inferReportFields(text, file.name);
+    setReportStatus("Report text extracted. Review before saving.");
+  } catch (error) {
+    setReportStatus("Could not extract report text. Staff can paste report findings into the box.");
+    console.error(error);
+  }
+}
+
+function updateInitialWithReport(record) {
+  if (record.reportType !== "X-ray") return;
+  const initials = readJson(INITIAL_STORAGE_KEY, []);
+  const index = initials.findIndex((item) => patientKey(item?.fields?.patientName) === patientKey(record.patientName));
+  if (index < 0) return;
+  initials[index] = {
+    ...initials[index],
+    fields: {
+      ...(initials[index].fields || {}),
+      xrayDate: record.reportDate || initials[index].fields?.xrayDate || "",
+      xrayLocation: record.bodyArea || initials[index].fields?.xrayLocation || ""
+    },
+    choices: {
+      ...(initials[index].choices || {}),
+      recentXray: "Y"
+    },
+    updatedAt: new Date().toISOString()
+  };
+  writeJson(INITIAL_STORAGE_KEY, initials);
+}
+
+function applyDiagnosticReport() {
+  const record = reportRecord();
+  if (!record.patientName) {
+    setReportStatus("Patient name is required before saving a report.");
+    return;
+  }
+  if (!record.reportText && !record.fileName) {
+    setReportStatus("Upload a report or paste report text before saving.");
+    return;
+  }
+  const reports = savedReports().filter((item) => item.id !== record.id);
+  writeReports([record, ...reports]);
+
+  const profiles = readJson(PROFILE_STORAGE_KEY, {});
+  const key = patientKey(record.patientName);
+  const priorProfile = profiles[key] || {};
+  const reportBrief = `${record.reportType}${record.reportDate ? ` ${record.reportDate}` : ""}${record.bodyArea ? ` - ${record.bodyArea}` : ""}`;
+  profiles[key] = {
+    ...priorProfile,
+    patientName: record.patientName,
+    diagnosticReports: [reportBrief, ...(priorProfile.diagnosticReports || [])].slice(0, 20),
+    diagnosticReportsUpdatedAt: record.updatedAt,
+    recentXray: record.reportType === "X-ray" ? "Y" : priorProfile.recentXray,
+    xrayDate: record.reportType === "X-ray" ? record.reportDate || priorProfile.xrayDate || "" : priorProfile.xrayDate,
+    xrayLocation: record.reportType === "X-ray" ? record.bodyArea || priorProfile.xrayLocation || "" : priorProfile.xrayLocation
+  };
+  writeJson(PROFILE_STORAGE_KEY, profiles);
+  updateInitialWithReport(record);
+  renderReportList();
+  setReportStatus("Diagnostic report saved to this patient.");
+}
+
+function renderReportList() {
+  const mount = $("#reportList");
+  if (!mount) return;
+  const patient = patientKey($("#patientName").value);
+  mount.innerHTML = "";
+  if (!patient) {
+    mount.innerHTML = "<p>Select or enter a patient name to see saved diagnostic reports.</p>";
+    return;
+  }
+  const reports = savedReports()
+    .filter((record) => patientKey(record.patientName) === patient)
+    .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+  if (!reports.length) {
+    mount.innerHTML = "<p>No diagnostic reports saved for this patient in this browser.</p>";
+    return;
+  }
+  reports.slice(0, 8).forEach((record) => {
+    const card = document.createElement("article");
+    const title = document.createElement("h3");
+    title.textContent = `${record.reportType || "Report"}${record.reportDate ? ` - ${record.reportDate}` : ""}`;
+    const meta = document.createElement("p");
+    meta.textContent = [record.bodyArea, record.fileName].filter(Boolean).join(" | ") || "No body area/file noted";
+    card.append(title, meta);
+    mount.appendChild(card);
+  });
+}
+
 function parseText() {
   const text = normalizeText($("#rawText").value);
   if (!text) {
@@ -884,6 +1053,8 @@ function parseText() {
 $("#extractText").addEventListener("click", extractTextFromFile);
 $("#parseText").addEventListener("click", parseText);
 $("#applyImport").addEventListener("click", applyImport);
+$("#extractReport").addEventListener("click", extractDiagnosticReport);
+$("#applyReport").addEventListener("click", applyDiagnosticReport);
 $("#dob").addEventListener("input", () => {
   $("#patientAge").value = calculateAge($("#dob").value);
   updateLinks();
@@ -891,5 +1062,9 @@ $("#dob").addEventListener("input", () => {
 ["patientName", "patientAge", "recentXray", "xrayDate", "xrayLocation", "chiefComplaint", "historyNotes", "contraindications", "familyHistory", "strokeRiskFlags"].forEach((id) => {
   document.getElementById(id).addEventListener("input", updateLinks);
   document.getElementById(id).addEventListener("change", updateLinks);
+});
+["reportType", "reportDate", "reportBodyArea", "reportText"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", renderReportList);
+  document.getElementById(id).addEventListener("change", renderReportList);
 });
 updateLinks();
