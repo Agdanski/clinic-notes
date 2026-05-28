@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clinic Notes Dashboard</title>
+  <link rel="stylesheet" href="app.css?v=20260528-alerts">
+  <link rel="stylesheet" href="initial.css">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <main class="app-shell dashboard-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="clinic-logo" src="assets/gdanski-chiropractic-logo-balanced.png" alt="Gdanski Chiropractic logo">
+      </div>
+      <div class="page-title">
+        <p class="eyebrow">Staff dashboard</p>
+        <h1>Paper intake import</h1>
+      </div>
+      <div class="actions">
+        <a class="button-link" href="initial.html">Initial</a>
+        <a class="button-link" href="exam.html">Exam</a>
+        <a class="button-link" href="index.html">SOAP</a>
+        <a class="button-link" href="demo.html">Demo</a>
+      </div>
+    </header>
+
+    <section class="sheet dashboard-grid">
+      <section class="dashboard-panel">
+        <div class="section-head">
+          <h2>Upload Intake</h2>
+          <span>Adult or child</span>
+        </div>
+        <label>
+          <span>Form type</span>
+          <select id="formType">
+            <option value="adult">Adult intake</option>
+            <option value="child">Child intake</option>
+          </select>
+        </label>
+        <label>
+          <span>Scanned form</span>
+          <input id="formFile" type="file" accept="application/pdf,image/*">
+        </label>
+        <div class="dashboard-actions">
+          <button type="button" id="extractText">Extract/OCR text</button>
+          <button type="button" id="parseText">Map to fields</button>
+        </div>
+        <output id="statusLine" aria-live="polite"></output>
+        <label>
+          <span>Extracted text</span>
+          <textarea id="rawText" rows="16" placeholder="OCR or extracted text appears here. Staff can edit before mapping."></textarea>
+        </label>
+      </section>
+
+      <section class="dashboard-panel">
+        <div class="section-head">
+          <h2>Review Import</h2>
+          <span>Confirm before applying</span>
+        </div>
+        <div class="field-grid two">
+          <label>
+            <span>Patient name</span>
+            <input id="patientName">
+          </label>
+          <label>
+            <span>Date of birth</span>
+            <input id="dob" type="date">
+          </label>
+          <label>
+            <span>Age</span>
+            <input id="patientAge" inputmode="numeric">
+          </label>
+          <label>
+            <span>Spinal x-rays</span>
+            <select id="recentXray">
+              <option value=""></option>
+              <option value="Y">Y</option>
+              <option value="N">N</option>
+            </select>
+          </label>
+          <label>
+            <span>X-ray date</span>
+            <input id="xrayDate" type="date">
+          </label>
+          <label>
+            <span>X-ray location/body area</span>
+            <input id="xrayLocation">
+          </label>
+          <label class="wide">
+            <span>Chief complaint</span>
+            <textarea id="chiefComplaint" rows="5"></textarea>
+          </label>
+          <label class="wide">
+            <span>History</span>
+            <textarea id="historyNotes" rows="7"></textarea>
+          </label>
+          <label class="wide">
+            <span>Contraindications / cautions</span>
+            <textarea id="contraindications" rows="5"></textarea>
+          </label>
+          <label>
+            <span>Family history</span>
+            <input id="familyHistory">
+          </label>
+          <label>
+            <span>Stroke risk review flags</span>
+            <input id="strokeRiskFlags">
+          </label>
+        </div>
+        <div class="dashboard-actions">
+          <button type="button" id="applyImport">Apply to patient forms</button>
+          <a class="button-link" id="openInitial" href="initial.html">Open initial</a>
+          <a class="button-link" id="openExam" href="exam.html">Open exam</a>
+          <a class="button-link" id="openSoap" href="index.html">Open SOAP</a>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

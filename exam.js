@@ -458,6 +458,23 @@ function writeProfiles(profiles) {
   writeJson(PROFILE_STORAGE_KEY, profiles);
 }
 
+function currentProfileForPatient(name) {
+  const key = patientKey(name);
+  if (!key) return null;
+  return savedProfiles()[key] || null;
+}
+
+function applyPatientProfileToExam() {
+  const profile = currentProfileForPatient(document.getElementsByName("patientName")[0].value);
+  if (!profile) return;
+  if (profile.patientAge !== undefined) {
+    document.getElementsByName("patientAge")[0].value = profile.patientAge || "";
+  }
+  if (profile.doctor && !document.getElementsByName("doctor")[0].value) {
+    document.getElementsByName("doctor")[0].value = profile.doctor;
+  }
+}
+
 function saveProfile(record) {
   const key = patientKey(record.fields.patientName);
   if (!key) return;
@@ -506,6 +523,7 @@ function loadExam(record) {
     if (field) field.value = value || "";
   });
   state.choices = migrateChoices(record.choices || {});
+  applyPatientProfileToExam();
   render();
   setStatus("Exam loaded.");
 }
@@ -554,6 +572,7 @@ function loadRequestedExam() {
     return;
   }
   $("#patientName").value = params.get("patient");
+  applyPatientProfileToExam();
 }
 
 function setDefaults() {

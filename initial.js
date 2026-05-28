@@ -334,7 +334,10 @@ function saveProfile(record) {
   if (!key) return;
   const profiles = savedProfiles();
   profiles[key] = {
+    ...(profiles[key] || {}),
     patientName: fields.patientName,
+    dob: fields.dob,
+    patientAge: fields.patientAge,
     contraindications: combinedText("contraindicationOptions", fields.contraindications),
     neckAdjustment: state.choices.neckAdj || "",
     softTissueOnly: state.choices.softTissueOnly || "",

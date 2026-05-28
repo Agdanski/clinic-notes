@@ -153,7 +153,7 @@ textarea:focus {
 .patient-row,
 .visit-row {
   display: grid;
-  grid-template-columns: minmax(210px, 1.5fr) minmax(190px, 1fr) minmax(170px, 1fr) minmax(110px, 0.55fr) minmax(140px, 0.75fr);
+  grid-template-columns: minmax(210px, 1.35fr) minmax(70px, 0.35fr) minmax(190px, 1fr) minmax(170px, 1fr) minmax(110px, 0.55fr);
   align-items: end;
   margin-bottom: 10px;
 }

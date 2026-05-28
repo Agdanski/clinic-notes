@@ -619,6 +619,7 @@ function priorReferenceText() {
 
 function buildSummary() {
   const patient = $("#patientName").value.trim();
+  const patientAge = $("#patientAge").value.trim();
   const doctor = $("#doctor").value;
   const visitNumber = $("#visitNumber").value;
   const reexamAt = $("#reExamAt").value;
@@ -631,6 +632,7 @@ function buildSummary() {
   const isReexam = Number(visitNumber) === Number(reexamAt);
   const visitLines = [
     `Patient: ${filled(patient)}`,
+    `Age: ${filled(patientAge)}`,
     `Date: ${displayVisitDate()}`,
     `Time: ${filled(time)}`,
     `Doctor of record: ${filled(doctor)}`,
@@ -690,6 +692,7 @@ function noteData() {
   const isReexam = visitNumber > 0 && visitNumber === reExamAt;
   return {
     patientName: $("#patientName").value,
+    patientAge: $("#patientAge").value,
     reExamAt: $("#reExamAt").value,
     visitTime: $("#visitTime").value,
     monthYear: $("#monthYear").value,
@@ -719,6 +722,7 @@ function noteData() {
 
 function loadNote(note) {
   $("#patientName").value = note.patientName || "";
+  $("#patientAge").value = note.patientAge || "";
   $("#reExamAt").value = note.reExamAt || patientDefaults.reExamEvery;
   $("#visitTime").value = note.visitTime || "";
   $("#monthYear").value = note.monthYear || "";
@@ -769,6 +773,10 @@ function applyPatientProfile() {
   patientDefaults.initialLevels = [];
   if (!profile) return;
   const contraindications = $("#contraindications");
+  const patientAge = $("#patientAge");
+  if (profile.patientAge !== undefined && patientAge.value !== String(profile.patientAge || "")) {
+    patientAge.value = profile.patientAge || "";
+  }
   if (profile.contraindications !== undefined && contraindications.value !== profile.contraindications) {
     contraindications.value = profile.contraindications || "";
   }
@@ -819,6 +827,7 @@ function samePatientVisit(a, b) {
 function noteHasMeaningfulContent() {
   return Boolean(
     $("#patientName").value.trim() ||
+    $("#patientAge").value.trim() ||
     $("#visitTime").value ||
     $("#doctor").value ||
     $("#contraindications").value.trim() ||
@@ -1062,6 +1071,7 @@ function resetNote() {
   const carriedFrequency = latestFrequencyDraft();
   const carriedReexam = latestReexamDraft();
   $("#patientName").value = patientDefaults.patientName;
+  $("#patientAge").value = "";
   $("#reExamAt").value = carriedReexam?.nextReExamAt || patientDefaults.reExamEvery;
   $("#visitTime").value = "";
   $("#monthYear").value = "";
@@ -1086,7 +1096,7 @@ function resetNote() {
 }
 
 function bindEvents() {
-  ["patientName", "reExamAt", "visitTime", "doctor", "visitNumber", "freeNote", "dcNote", "importantNotes", "contraindications"].forEach((id) => {
+  ["patientName", "patientAge", "reExamAt", "visitTime", "doctor", "visitNumber", "freeNote", "dcNote", "importantNotes", "contraindications"].forEach((id) => {
     $(`#${id}`).addEventListener("input", renderAll);
     $(`#${id}`).addEventListener("change", renderAll);
   });
