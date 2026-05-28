@@ -109,6 +109,17 @@ function todayParts() {
   };
 }
 
+function calculateAge(dobValue) {
+  if (!dobValue) return "";
+  const dob = new Date(`${dobValue}T00:00:00`);
+  if (Number.isNaN(dob.getTime())) return "";
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const birthdayThisYear = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+  if (today < birthdayThisYear) age -= 1;
+  return age >= 0 ? String(age) : "";
+}
+
 function makeKey(line, label) {
   return `${line}:${label}`;
 }
@@ -693,6 +704,7 @@ function noteData() {
   return {
     patientName: $("#patientName").value,
     patientAge: $("#patientAge").value,
+    patientDob: currentPatientProfile()?.dob || "",
     reExamAt: $("#reExamAt").value,
     visitTime: $("#visitTime").value,
     monthYear: $("#monthYear").value,
@@ -722,7 +734,7 @@ function noteData() {
 
 function loadNote(note) {
   $("#patientName").value = note.patientName || "";
-  $("#patientAge").value = note.patientAge || "";
+  $("#patientAge").value = calculateAge(note.patientDob) || note.patientAge || "";
   $("#reExamAt").value = note.reExamAt || patientDefaults.reExamEvery;
   $("#visitTime").value = note.visitTime || "";
   $("#monthYear").value = note.monthYear || "";
@@ -774,8 +786,9 @@ function applyPatientProfile() {
   if (!profile) return;
   const contraindications = $("#contraindications");
   const patientAge = $("#patientAge");
-  if (profile.patientAge !== undefined && patientAge.value !== String(profile.patientAge || "")) {
-    patientAge.value = profile.patientAge || "";
+  const currentAge = calculateAge(profile.dob) || profile.patientAge || "";
+  if (currentAge !== "" && patientAge.value !== String(currentAge)) {
+    patientAge.value = currentAge;
   }
   if (profile.contraindications !== undefined && contraindications.value !== profile.contraindications) {
     contraindications.value = profile.contraindications || "";
