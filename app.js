@@ -17,7 +17,8 @@ function defaultSingle() {
     improvement: patientDefaults.improvement,
     acuity: patientDefaults.acuity,
     treatmentStatus: "TTC",
-    schedule: patientDefaults.schedule
+    schedule: patientDefaults.schedule,
+    shoulderLevel: ""
   };
 }
 
@@ -91,7 +92,8 @@ const planItems = [
 const objectiveDetailItems = [
   ["Ft flare", "side"], ["Psoas", "muscleStrength"], ["Pirif", "muscleStrength"], ["Glut", "muscleStrength"],
   ["Quad", "muscleStrength"], ["Delt", "muscleStrength"], ["Ham", "muscleStrength"], ["Lat", "muscleStrength"],
-  ["Torque R"], ["Torque L"]
+  ["Torque R"], ["Torque L"], ["Low left shoulder", "shoulderLevel", "low-left"], ["Even shoulders", "shoulderLevel", "even"],
+  ["Low right shoulder", "shoulderLevel", "low-right"]
 ];
 const orthoItems = [
   ["Heel to buttock", "orthoSided"], ["SLR", "orthoSided"], ["Yoman's", "orthoSided"],
@@ -135,6 +137,10 @@ function mountLine(targetId, line, items) {
     button.dataset.label = label;
     button.dataset.mode = mode || "toggle";
     if (value) button.dataset.value = value;
+    if (mode === "shoulderLevel") {
+      button.classList.add("shoulder-level-button");
+      button.title = label;
+    }
     if (line === "P" && label === "A") button.classList.add("plan-right-start");
     button.addEventListener("click", () => handleMark(button));
     target.appendChild(button);
@@ -175,6 +181,11 @@ function handleMark(button) {
   }
   if (mode === "subjectiveChange" || mode === "improvement" || mode === "acuity" || mode === "schedule") {
     state.single[mode] = state.single[mode] === value ? "" : value;
+    renderAll();
+    return;
+  }
+  if (mode === "shoulderLevel") {
+    state.single.shoulderLevel = state.single.shoulderLevel === value ? "" : value;
     renderAll();
     return;
   }
@@ -419,6 +430,18 @@ function displayValue(value) {
   return value;
 }
 
+function shoulderLevelText(value) {
+  if (value === "low-left") return "Shoulders low left";
+  if (value === "even") return "Shoulders even";
+  if (value === "low-right") return "Shoulders low right";
+  return "";
+}
+
+function shoulderLevelMarkup(value) {
+  const className = value === "low-left" ? "low-left" : value === "low-right" ? "low-right" : "even";
+  return `<span class="shoulder-symbol ${className}" aria-hidden="true"><span class="shoulder-bar"></span><span class="shoulder-stem"></span></span>`;
+}
+
 function renderButton(button) {
   const { line, label, mode, value } = button.dataset;
   const key = makeKey(line, label);
@@ -431,9 +454,10 @@ function renderButton(button) {
   const isSingle = (mode === "subjectiveChange" || mode === "improvement" || mode === "acuity" || mode === "schedule") && state.single[mode] === value;
   const isTreatmentStatus = mode === "treatmentStatus";
   const isSchedulePicker = mode === "schedulePicker";
+  const isShoulderLevel = mode === "shoulderLevel" && state.single.shoulderLevel === value;
   const isDc = isTreatmentStatus && state.single.treatmentStatus === "DC";
   const isFixed = mode === "fixed";
-  const active = isAutoLevel || isVisitLevel || isSided || isToggle || isSingle || isFixed || isTreatmentStatus || isSchedulePicker;
+  const active = isAutoLevel || isVisitLevel || isSided || isToggle || isSingle || isShoulderLevel || isFixed || isTreatmentStatus || isSchedulePicker;
   button.classList.toggle("is-selected", active && !isVisitLevel && !isSingle && !severity);
   button.classList.toggle("is-visit", isVisitLevel);
   button.classList.toggle("is-single", isSingle);
@@ -445,6 +469,11 @@ function renderButton(button) {
   const badge = severity ? (state.sided[key] || "") : state.sided[key] || levelFinding;
   const displayLabel = isTreatmentStatus ? (state.single.treatmentStatus === "DC" ? "DC" : "TTC") : label;
   const displayBadge = isSchedulePicker ? state.single.schedule : badge;
+  if (mode === "shoulderLevel") {
+    button.setAttribute("aria-label", label);
+    button.innerHTML = shoulderLevelMarkup(value);
+    return;
+  }
   button.innerHTML = `${displayLabel}${displayBadge ? `<span class="badge">${displayValue(displayBadge)}</span>` : ""}`;
 }
 
@@ -575,6 +604,8 @@ function buildParts() {
   if (state.single.subjectiveChange) s.push(state.single.subjectiveChange);
   const o = selectedMarks("O");
   const oDetail = selectedMarks("OD");
+  const shoulderLevel = shoulderLevelText(state.single.shoulderLevel);
+  if (shoulderLevel) oDetail.push(shoulderLevel);
   const orthos = selectedMarks("ORTHO");
   if (state.single.improvement) o.push(state.single.improvement);
   const a = selectedMarks("A");

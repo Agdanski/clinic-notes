@@ -423,6 +423,49 @@ input[readonly] {
   font-size: 0.76rem;
 }
 
+.shoulder-level-button {
+  min-width: 48px;
+}
+
+.shoulder-symbol {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 24px;
+}
+
+.shoulder-symbol .shoulder-bar,
+.shoulder-symbol .shoulder-stem {
+  position: absolute;
+  left: 50%;
+  background: currentColor;
+  transform-origin: center;
+}
+
+.shoulder-symbol .shoulder-bar {
+  top: 4px;
+  width: 26px;
+  height: 3px;
+  margin-left: -13px;
+  border-radius: 2px;
+}
+
+.shoulder-symbol .shoulder-stem {
+  top: 5px;
+  width: 3px;
+  height: 17px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+}
+
+.shoulder-symbol.low-left .shoulder-bar {
+  transform: rotate(12deg);
+}
+
+.shoulder-symbol.low-right .shoulder-bar {
+  transform: rotate(-12deg);
+}
+
 .group-label {
   color: var(--muted);
   font-size: 0.78rem;
