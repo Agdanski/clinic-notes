@@ -116,6 +116,17 @@ function calculateAge(dobValue) {
 function parseDate(value) {
   const text = String(value || "").trim();
   if (!text) return "";
+  const monthNames = {
+    january: "01", jan: "01", february: "02", feb: "02", march: "03", mar: "03", april: "04", apr: "04",
+    may: "05", june: "06", jun: "06", july: "07", jul: "07", august: "08", aug: "08",
+    september: "09", sept: "09", sep: "09", october: "10", oct: "10", november: "11", nov: "11",
+    december: "12", dec: "12"
+  };
+  const written = text.match(/\b(January|Jan|February|Feb|March|Mar|April|Apr|May|June|Jun|July|Jul|August|Aug|September|Sept|Sep|October|Oct|November|Nov|December|Dec)\.?\s+(\d{1,2})(?:st|nd|rd|th)?[\s,'-]+(\d{2,4})\b/i);
+  if (written) {
+    const year = written[3].length === 2 ? inferCenturyYear(written[3]) : written[3];
+    return `${year}-${monthNames[written[1].toLowerCase()]}-${written[2].padStart(2, "0")}`;
+  }
   const iso = text.match(/\b(20\d{2}|19\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/);
   if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
   const mdy = text.match(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/);
@@ -191,6 +202,18 @@ function mergeLine(title, values) {
 
 function appendIfValue(lines, title, value) {
   if (value) lines.push(`${title}: ${value}`);
+}
+
+function legacyValueBetween(text, start, ends) {
+  const block = sectionText(text, [start], ends, "");
+  if (!block) return "";
+  return cleanValue(block.split("\n").filter((line) => !/^\s*$/.test(line)).join(" "));
+}
+
+function checkedFromText(text, items) {
+  const marked = checkedItems(text, items);
+  if (marked.length) return marked;
+  return [];
 }
 
 function textLines(text) {
@@ -546,6 +569,57 @@ function parseJaneConsent(text) {
     consentAccepted: !isPreview && /I hereby acknowledge|I consent to chiropractic treatment|Patient Signature/i.test(text),
     claimConfirm: !isPreview && /NOT related to an active MVA|active Personal Injury|reports will NOT be sent to lawyers/i.test(text),
     janePatientSignature: !isPreview && /Patient Signature/i.test(text)
+  };
+}
+
+function parseLegacyInitial(text) {
+  const nameMatch = text.match(/Name[:\s]+([\s\S]{0,90}?)(?:Birthdate|Today's Date|Date|Age|Sex|Address)/i);
+  const patientName = cleanValue(nameMatch?.[1] || valueAfter(text, ["Name"]));
+  const dob = parseDate(valueAfter(text, ["Birthdate", "Birth date"])) || parseDate(text.match(/Birthdate[:\s]+([^\n]+)/i)?.[1] || "");
+  const patientAge = valueAfter(text, ["Age"]) || calculateAge(dob);
+  const xrayLine = legacyValueBetween(text, "Have you had X-rays taken in the last six months", ["Name:", "Intake", "Why Chiropractic Care", "Patient Signature"]);
+  const concerns = legacyValueBetween(text, "Current Concerns/Challenges", ["Other doctors seen", "Type of Treatment"]);
+  const onset = legacyValueBetween(text, "When did this condition begin", ["Has the condition occurred", "Is the condition"]);
+  const aggravates = checkedFromText(text, ["Sitting", "Standing", "Bending", "Lifting", "Walking", "Lying Down", "Cold", "Dampness"]);
+  const relieves = checkedFromText(text, ["Bed Rest", "Ice", "Heat", "Massage", "Medication"]);
+  const status = checkedFromText(text, ["Worse", "Constant", "Comes/Goes", "Better"]);
+  const character = checkedFromText(text, ["Sharp", "Dull", "Ache", "Pins & Needles", "Numb", "Burning", "Intermittent"]);
+  const previous = checkedFromText(text, [
+    "Job-related", "Auto-related", "Home Injury", "Fall", "Other", "Coffee", "Tea", "Alcohol", "Cigarettes",
+    "White Sugar", "Pneumonia", "Mumps", "Influenza", "Rheumatic Fever", "Chicken Pox", "Arthritis",
+    "Tuberculosis", "Diabetes", "Epilepsy", "Cancer", "Heart Disease", "Lumbago", "Thyroid", "Eczema"
+  ]);
+  const careGoal = checkedFromText(text, ["Preventative Care", "Corrective Care", "Relief Care"]);
+  const stress = checkedFromText(text, ["High", "Moderate", "Very Little"]);
+
+  const chiefComplaint = [];
+  appendIfValue(chiefComplaint, "Current concerns", concerns);
+  appendIfValue(chiefComplaint, "Onset", onset);
+  appendIfValue(chiefComplaint, "Aggravates", aggravates.join(", "));
+  appendIfValue(chiefComplaint, "Relieves", relieves.join(", "));
+  appendIfValue(chiefComplaint, "Status", status.join(", "));
+  appendIfValue(chiefComplaint, "Character", character.join(", "));
+  appendIfValue(chiefComplaint, "Severity", legacyValueBetween(text, "rate the severity of your pain", ["Compare this problem", "Your ability"]));
+
+  const history = [];
+  history.push(mergeLine("Checked history items", previous));
+  history.push(mergeLine("Care goal", careGoal));
+  history.push(mergeLine("Lifestyle stress", stress));
+  appendIfValue(history, "Work interference", legacyValueBetween(text, "ability to work", ["Your ability to enjoy your family", "Your ability to enjoy your hobbies"]));
+  appendIfValue(history, "Other conditions", legacyValueBetween(text, "Do you suffer from any other condition", ["On a scale", "Have you had X-rays"]));
+
+  return {
+    patientName,
+    dob,
+    patientAge,
+    recentXray: /\byes\b/i.test(xrayLine) ? "Y" : /\bno\b/i.test(xrayLine) ? "N" : "",
+    xrayDate: "",
+    xrayLocation: xrayLine,
+    chiefComplaint: chiefComplaint.filter(Boolean).join("\n"),
+    historyNotes: history.filter(Boolean).join("\n"),
+    contraindications: "",
+    familyHistory: Array.from(new Set(previous.map(normalizeFamilyHistory))).join(", "),
+    strokeRiskFlags: previous.filter((item) => /heart|diabetes|cancer/i.test(item)).join(", ")
   };
 }
 
@@ -1042,7 +1116,8 @@ function parseText() {
     janeAdult: parseJaneAdultLike,
     janeTeen: parseJaneAdultLike,
     janeChild: parseJaneChild,
-    janeConsent: parseJaneConsent
+    janeConsent: parseJaneConsent,
+    legacyInitial: parseLegacyInitial
   }[$("#formType").value] || parseJaneAdultLike;
   const data = parser(text);
   lastMappedConsent = data.target === "consent" ? data : null;
