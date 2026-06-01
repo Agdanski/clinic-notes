@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clinic Notes Admin</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="server.css">
+</head>
+<body>
+  <main class="app-shell admin-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="clinic-logo" src="assets/gdanski-chiropractic-logo-balanced.png" alt="Gdanski Chiropractic logo">
+      </div>
+      <div class="page-title">
+        <p class="eyebrow">Private server</p>
+        <h1>Admin</h1>
+      </div>
+      <div class="actions">
+        <a class="button-link" href="dashboard.html">Dashboard</a>
+        <button type="button" id="backupNow">Backup now</button>
+      </div>
+    </header>
+
+    <section class="sheet admin-grid">
+      <section class="admin-panel">
+        <div class="section-head">
+          <h2>Create User</h2>
+          <span>Individual accounts only</span>
+        </div>
+        <form id="userForm" class="field-grid two">
+          <label>
+            <span>Username</span>
+            <input id="newUsername" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Display name</span>
+            <input id="newDisplayName" autocomplete="off">
+          </label>
+          <label>
+            <span>Role</span>
+            <select id="newRole">
+              <option value="staff">Staff</option>
+              <option value="doctor">Doctor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>
+            <span>Temporary password</span>
+            <input id="newPassword" type="password" required>
+          </label>
+          <button type="submit">Create user</button>
+        </form>
+        <output id="adminStatus" aria-live="polite"></output>
+      </section>
+
+      <section class="admin-panel">
+        <div class="section-head">
+          <h2>Users</h2>
+          <span>Access list</span>
+        </div>
+        <div id="userList" class="admin-list"></div>
+      </section>
+    </section>
+
+    <section class="sheet admin-panel">
+      <div class="section-head">
+        <h2>Audit Log</h2>
+        <span>Recent events</span>
+      </div>
+      <div id="auditList" class="audit-list"></div>
+    </section>
+  </main>
+  <script src="central-storage.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

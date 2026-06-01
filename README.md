@@ -10,9 +10,20 @@ This folder contains the first digital prototype for the day-to-day/repeat visit
 - `assets/SoapNote.pdf` - copy of the current paper repeat-visit source form.
 - `docs/source-extraction.md` - notes on the paper form structure captured in this pass.
 
-## Use
+## Prototype Use
 
 Open `C:\stuff\clinic notes\index.html` in a browser on the tablet or desktop. The prototype stores drafts only in the browser on that device and can export a JSON file or print a signed summary.
+
+## Private Clinic Server Use
+
+For clinic use with real patient records, run the private Node/SQLite server instead of opening the HTML files directly:
+
+```powershell
+npm install
+npm start
+```
+
+Then open `http://SERVER-IP:3000` from clinic desktops or Android tablets on the clinic network. The server adds login accounts, central SQLite storage, audit events, diagnostic file uploads, and backup support. See `docs/clinic-server-deployment.md` for the step-by-step clinic-server setup.
 
 The current repeat-visit screen is intentionally paper-like:
 

@@ -1,1 +1,7 @@
 forms/
+node_modules/
+.env
+data/
+uploads/
+backups/
+.tmp-test/

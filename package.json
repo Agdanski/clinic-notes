@@ -1,0 +1,20 @@
+{
+  "name": "clinic-notes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private clinic-hosted chiropractic notes system.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "backup": "node scripts/backup.mjs",
+    "check": "node --check server.js && node --check central-storage.js && node --check login.js && node --check admin.js && node --check scripts/backup.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "express": "^4.22.2",
+    "multer": "^2.0.2"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

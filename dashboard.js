@@ -937,7 +937,7 @@ function applyImport() {
   };
   writeJson(PROFILE_STORAGE_KEY, profiles);
   updateLinks();
-  setStatus("Imported into this browser. Open Initial, Consent, Exam, or SOAP to review.");
+  setStatus(window.ClinicServer ? "Imported to the clinic server. Open Initial, Consent, Exam, or SOAP to review." : "Imported into this browser. Open Initial, Consent, Exam, or SOAP to review.");
 }
 
 function applyConsentImport(data) {
@@ -1139,7 +1139,29 @@ function updateInitialWithReport(record) {
   writeJson(INITIAL_STORAGE_KEY, initials);
 }
 
-function applyDiagnosticReport() {
+async function uploadDiagnosticReportFile(record) {
+  const file = $("#reportFile").files[0];
+  if (!file || !window.ClinicServer) return null;
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("patientName", record.patientName);
+  formData.append("patientKey", patientKey(record.patientName));
+  formData.append("category", "diagnostic-report");
+  formData.append("reportType", record.reportType || "");
+  formData.append("reportDate", record.reportDate || "");
+  formData.append("bodyArea", record.bodyArea || "");
+  formData.append("notes", record.reportText || "");
+  const response = await fetch("/api/uploads", {
+    method: "POST",
+    credentials: "same-origin",
+    body: formData
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Could not upload report file to the clinic server.");
+  return data;
+}
+
+async function applyDiagnosticReport() {
   const record = reportRecord();
   if (!record.patientName) {
     setReportStatus("Patient name is required before saving a report.");
@@ -1147,6 +1169,19 @@ function applyDiagnosticReport() {
   }
   if (!record.reportText && !record.fileName) {
     setReportStatus("Upload a report or paste report text before saving.");
+    return;
+  }
+  setReportStatus("Saving diagnostic report.");
+  try {
+    const upload = await uploadDiagnosticReportFile(record);
+    if (upload) {
+      record.uploadId = upload.id;
+      record.serverStoredName = upload.storedName;
+      record.serverUploadedAt = upload.createdAt;
+    }
+  } catch (error) {
+    console.error(error);
+    setReportStatus(error.message);
     return;
   }
   const reports = savedReports().filter((item) => item.id !== record.id);
@@ -1168,7 +1203,7 @@ function applyDiagnosticReport() {
   writeJson(PROFILE_STORAGE_KEY, profiles);
   updateInitialWithReport(record);
   renderReportList();
-  setReportStatus("Diagnostic report saved to this patient.");
+  setReportStatus(window.ClinicServer ? "Diagnostic report saved to the clinic server." : "Diagnostic report saved to this browser.");
 }
 
 function renderReportList() {

@@ -1088,7 +1088,7 @@ function validateDcNote() {
 
 function saveDraft() {
   if (!validateDcNote()) return;
-  persistDraft("Draft saved on this device.");
+  persistDraft(window.ClinicServer ? "Draft saved to the clinic server." : "Draft saved on this device.");
 }
 
 function exportNote() {
