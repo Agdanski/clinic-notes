@@ -73,6 +73,11 @@ function savedProfiles() {
   }
 }
 
+function currentPatientProfile() {
+  const key = patientKey($("#patientName")?.value);
+  return key ? savedProfiles()[key] || null : null;
+}
+
 function writeProfiles(profiles) {
   localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
 }
@@ -185,6 +190,7 @@ function fieldsData() {
   $$("input[name], textarea[name], select[name]").forEach((field) => {
     fields[field.name] = field.value;
   });
+  fields.patientId = currentPatientProfile()?.patientId || fields.patientId || "";
   return fields;
 }
 
@@ -230,6 +236,7 @@ function buildSummary() {
     "Patient",
     ...linesForFields(fields, [
       ["Patient", "patientName"],
+      ["Patient ID", "patientId"],
       ["Date", "monthYear"],
       ["Day", "visitDay"],
       ["DOB", "dob"],
@@ -336,6 +343,7 @@ function saveProfile(record) {
   profiles[key] = {
     ...(profiles[key] || {}),
     patientName: fields.patientName,
+    patientId: fields.patientId || profiles[key]?.patientId || "",
     dob: fields.dob,
     patientAge: fields.patientAge,
     contraindications: combinedText("contraindicationOptions", fields.contraindications),

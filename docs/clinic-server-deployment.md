@@ -56,6 +56,21 @@ After logging in as admin:
 3. Use `doctor` for chiropractors, `staff` for front desk, and `admin` only for people managing users/backups.
 4. Do not share accounts for live records.
 
+## Updating The App On The Server
+
+When a new code update is pushed to GitHub, open PowerShell as Administrator on the server and run:
+
+```powershell
+cd C:\Users\itadmin.Gdanski\clinic-notes
+git pull
+npm install
+C:\nssm\win64\nssm.exe restart ClinicNotes
+```
+
+If only JavaScript/HTML/server code changed, `npm install` usually finishes quickly. Keep it in the update routine because it also catches dependency changes.
+
+Patient IDs are assigned by the server as `P000001`, `P000002`, etc. Existing saved patients are assigned IDs automatically the next time the server starts or storage syncs.
+
 ## Backups
 
 Manual backup from the app:

@@ -111,9 +111,22 @@ CREATE TABLE IF NOT EXISTS uploads (
   uploaded_by INTEGER REFERENCES users(id),
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS patient_ids (
+  patient_key TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL UNIQUE,
+  patient_name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS app_counters (
+  name TEXT PRIMARY KEY,
+  value INTEGER NOT NULL
+);
 `);
 
+ensureColumn("uploads", "patient_id", "TEXT");
 seedAdminUser();
+normalizeStoredPatientIds();
 
 const app = express();
 app.disable("x-powered-by");
@@ -179,6 +192,7 @@ app.get("/api/me", requireAuth, (req, res) => {
 });
 
 app.get("/api/storage", requireAuth, (req, res) => {
+  normalizeStoredPatientIds();
   const rows = db.prepare("SELECT key, value, updated_at FROM storage ORDER BY key").all();
   const storage = {};
   rows.forEach((row) => {
@@ -189,16 +203,14 @@ app.get("/api/storage", requireAuth, (req, res) => {
 
 app.put("/api/storage/:key", requireAuth, (req, res) => {
   const key = storageKey(req.params.key);
-  const value = String(req.body?.value ?? "");
+  const requestedValue = String(req.body?.value ?? "");
   const now = new Date().toISOString();
-  const prior = db.prepare("SELECT value FROM storage WHERE key = ?").get(key);
-  db.prepare(`
-    INSERT INTO storage (key, value, updated_by, updated_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = excluded.updated_at
-  `).run(key, value, req.user.id, now);
-  db.prepare("INSERT INTO storage_versions (key, value, action, changed_by, changed_at) VALUES (?, ?, ?, ?, ?)")
-    .run(key, value, prior ? "update" : "create", req.user.id, now);
+  const storage = readStorageObject();
+  const prior = storage[key];
+  storage[key] = requestedValue;
+  const normalized = normalizePatientIdsInStorage(storage);
+  saveChangedStorageValues(storage, normalized, req.user.id, now);
+  const value = normalized[key] ?? requestedValue;
   audit(req, req.user, prior ? "storage_update" : "storage_create", "storage", key, storageSummary(key, value), { key });
   res.json({ ok: true, key, updatedAt: now });
 });
@@ -216,6 +228,12 @@ app.delete("/api/storage/:key", requireAuth, (req, res) => {
 app.get("/api/users", requireAdmin, (_req, res) => {
   const users = db.prepare("SELECT id, username, display_name, role, disabled, created_at, updated_at FROM users ORDER BY username").all();
   res.json({ users });
+});
+
+app.get("/api/patients", requireAuth, (_req, res) => {
+  normalizeStoredPatientIds();
+  const patients = db.prepare("SELECT patient_id, patient_key, patient_name, created_at, updated_at FROM patient_ids ORDER BY patient_id").all();
+  res.json({ patients });
 });
 
 app.post("/api/users", requireAdmin, (req, res) => {
@@ -282,14 +300,16 @@ app.post("/api/uploads", requireAuth, upload.single("file"), (req, res) => {
   const now = new Date().toISOString();
   const patientName = String(req.body?.patientName || "").trim();
   const patientKey = String(req.body?.patientKey || slug(patientName)).trim();
+  const patientId = getOrCreatePatientId(patientName || patientKey, patientName);
   const category = String(req.body?.category || "diagnostic-report").trim();
   const result = db.prepare(`
     INSERT INTO uploads (
-      patient_key, patient_name, category, original_name, stored_name, mime_type, size,
+      patient_key, patient_id, patient_name, category, original_name, stored_name, mime_type, size,
       report_type, report_date, body_area, notes, uploaded_by, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     patientKey,
+    patientId,
     patientName,
     category,
     req.file.originalname,
@@ -309,8 +329,11 @@ app.post("/api/uploads", requireAuth, upload.single("file"), (req, res) => {
 
 app.get("/api/uploads", requireAuth, (req, res) => {
   const patientKey = String(req.query.patientKey || "").trim();
+  const patientId = String(req.query.patientId || "").trim();
   const rows = patientKey
     ? db.prepare("SELECT * FROM uploads WHERE patient_key = ? ORDER BY id DESC").all(patientKey)
+    : patientId
+    ? db.prepare("SELECT * FROM uploads WHERE patient_id = ? ORDER BY id DESC").all(patientId)
     : db.prepare("SELECT * FROM uploads ORDER BY id DESC LIMIT 200").all();
   res.json({ uploads: rows });
 });
@@ -416,6 +439,12 @@ function seedAdminUser() {
   }
 }
 
+function ensureColumn(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all().map((item) => item.name);
+  if (columns.includes(column)) return;
+  db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+}
+
 function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
   const hash = crypto.scryptSync(password, salt, 64).toString("hex");
   return { salt, hash };
@@ -462,6 +491,143 @@ function storageKey(key) {
   const cleaned = String(key || "").trim();
   if (!/^[a-zA-Z0-9_.:-]{1,120}$/.test(cleaned)) throw new Error("Invalid storage key.");
   return cleaned;
+}
+
+function patientKey(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function clinicPatientKey(value) {
+  return patientKey(value).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "";
+}
+
+function nextPatientId() {
+  const row = db.prepare("SELECT value FROM app_counters WHERE name = 'patient_id'").get();
+  const next = Number(row?.value || 0) + 1;
+  db.prepare(`
+    INSERT INTO app_counters (name, value)
+    VALUES ('patient_id', ?)
+    ON CONFLICT(name) DO UPDATE SET value = excluded.value
+  `).run(next);
+  return `P${String(next).padStart(6, "0")}`;
+}
+
+function getOrCreatePatientId(nameOrKey, displayName = "") {
+  const name = String(displayName || nameOrKey || "").trim();
+  const key = clinicPatientKey(nameOrKey || name);
+  if (!key) return "";
+  const existing = db.prepare("SELECT patient_id, patient_name FROM patient_ids WHERE patient_key = ?").get(key);
+  const now = new Date().toISOString();
+  if (existing) {
+    if (name && name !== existing.patient_name) {
+      db.prepare("UPDATE patient_ids SET patient_name = ?, updated_at = ? WHERE patient_key = ?").run(name, now, key);
+    }
+    return existing.patient_id;
+  }
+  const patientId = nextPatientId();
+  db.prepare("INSERT INTO patient_ids (patient_key, patient_id, patient_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+    .run(key, patientId, name || key, now, now);
+  return patientId;
+}
+
+function readStorageObject() {
+  const rows = db.prepare("SELECT key, value FROM storage").all();
+  return Object.fromEntries(rows.map((row) => [row.key, row.value]));
+}
+
+function parseStorageJson(value, fallback) {
+  try {
+    const parsed = JSON.parse(value || "");
+    return parsed === undefined || parsed === null ? fallback : parsed;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeStoredPatientIds() {
+  const storage = readStorageObject();
+  const normalized = normalizePatientIdsInStorage(storage);
+  saveChangedStorageValues(storage, normalized, null, new Date().toISOString());
+  normalizeUploadPatientIds();
+}
+
+function normalizePatientIdsInStorage(storage) {
+  const normalized = { ...storage };
+  normalizeProfiles(normalized);
+  normalizeRecordArray(normalized, "clinic-initial-visit-records-v1", "fields");
+  normalizeRecordArray(normalized, "clinic-vsc-exam-records-v1", "fields");
+  normalizeRecordArray(normalized, "clinic-informed-consents-v1", "fields");
+  normalizeRecordArray(normalized, "clinic-repeat-soap-drafts-v2", null);
+  normalizeRecordArray(normalized, "clinic-diagnostic-reports-v1", null);
+  return normalized;
+}
+
+function normalizeProfiles(storage) {
+  const key = "clinic-patient-profiles-v1";
+  if (!Object.prototype.hasOwnProperty.call(storage, key)) return;
+  const profiles = parseStorageJson(storage[key], {});
+  if (!profiles || typeof profiles !== "object" || Array.isArray(profiles)) return;
+  let changed = false;
+  Object.entries(profiles).forEach(([profileKey, profile]) => {
+    if (!profile || typeof profile !== "object" || Array.isArray(profile)) return;
+    const patientName = String(profile.patientName || profileKey || "").trim();
+    const patientId = getOrCreatePatientId(patientName || profileKey, patientName);
+    if (patientId && profile.patientId !== patientId) {
+      profile.patientId = patientId;
+      changed = true;
+    }
+  });
+  if (changed) storage[key] = JSON.stringify(profiles);
+}
+
+function normalizeRecordArray(storage, key, fieldsKey) {
+  if (!Object.prototype.hasOwnProperty.call(storage, key)) return;
+  const records = parseStorageJson(storage[key], []);
+  if (!Array.isArray(records)) return;
+  let changed = false;
+  records.forEach((record) => {
+    if (!record || typeof record !== "object" || Array.isArray(record)) return;
+    const fields = fieldsKey ? record[fieldsKey] || {} : record;
+    const patientName = String(fields.patientName || record.patientName || "").trim();
+    if (!patientName) return;
+    const patientId = getOrCreatePatientId(patientName, patientName);
+    if (!patientId) return;
+    if (record.patientId !== patientId) {
+      record.patientId = patientId;
+      changed = true;
+    }
+    if (fieldsKey && record[fieldsKey] && record[fieldsKey].patientId !== patientId) {
+      record[fieldsKey].patientId = patientId;
+      changed = true;
+    }
+  });
+  if (changed) storage[key] = JSON.stringify(records);
+}
+
+function saveChangedStorageValues(before, after, userId, now) {
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  keys.forEach((key) => {
+    const beforeValue = before[key];
+    const afterValue = after[key];
+    if (beforeValue === afterValue) return;
+    db.prepare(`
+      INSERT INTO storage (key, value, updated_by, updated_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = excluded.updated_at
+    `).run(key, String(afterValue ?? ""), userId, now);
+    db.prepare("INSERT INTO storage_versions (key, value, action, changed_by, changed_at) VALUES (?, ?, ?, ?, ?)")
+      .run(key, String(afterValue ?? ""), beforeValue === undefined ? "create" : "update", userId, now);
+  });
+}
+
+function normalizeUploadPatientIds() {
+  const rows = db.prepare("SELECT id, patient_key, patient_name, patient_id FROM uploads").all();
+  rows.forEach((row) => {
+    if (row.patient_id) return;
+    const patientId = getOrCreatePatientId(row.patient_name || row.patient_key, row.patient_name);
+    if (!patientId) return;
+    db.prepare("UPDATE uploads SET patient_id = ? WHERE id = ?").run(patientId, row.id);
+  });
 }
 
 function storageSummary(key, value) {

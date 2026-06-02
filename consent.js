@@ -177,6 +177,7 @@ function clearSignature(canvas, dirtyKey) {
 function fieldsData() {
   return {
     patientName: $("#patientName").value.trim(),
+    patientId: currentProfile()?.patientId || "",
     dob: $("#dob").value,
     patientAge: $("#patientAge").value,
     consentDate: $("#consentDate").value,
@@ -212,6 +213,7 @@ function buildSummary(fields = fieldsData(), patientSignature = "", doctorSignat
     "Consent To Chiropractic Treatment",
     "",
     `Patient: ${fields.patientName || "Not documented"}`,
+    `Patient ID: ${fields.patientId || "Not documented"}`,
     `DOB: ${fields.dob || "Not documented"}`,
     `Age: ${fields.patientAge || "Not documented"}`,
     `Consent date: ${fields.consentDate || "Not documented"}`,
@@ -266,6 +268,7 @@ function saveProfile(record) {
   profiles[key] = {
     ...(profiles[key] || {}),
     patientName: record.fields.patientName,
+    patientId: record.fields.patientId || profiles[key]?.patientId || "",
     dob: record.fields.dob,
     patientAge: record.fields.patientAge,
     consentCompleted: record.completed,

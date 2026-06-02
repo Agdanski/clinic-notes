@@ -662,6 +662,7 @@ function priorReferenceText() {
 function buildSummary() {
   const patient = $("#patientName").value.trim();
   const patientAge = $("#patientAge").value.trim();
+  const patientId = currentPatientProfile()?.patientId || "";
   const doctor = $("#doctor").value;
   const visitNumber = $("#visitNumber").value;
   const reexamAt = $("#reExamAt").value;
@@ -674,6 +675,7 @@ function buildSummary() {
   const isReexam = Number(visitNumber) === Number(reexamAt);
   const visitLines = [
     `Patient: ${filled(patient)}`,
+    `Patient ID: ${filled(patientId)}`,
     `Age: ${filled(patientAge)}`,
     `Date: ${displayVisitDate()}`,
     `Time: ${filled(time)}`,
@@ -733,6 +735,7 @@ function noteData() {
   const reExamAt = Number($("#reExamAt").value || 0);
   const isReexam = visitNumber > 0 && visitNumber === reExamAt;
   return {
+    patientId: currentPatientProfile()?.patientId || "",
     patientName: $("#patientName").value,
     patientAge: $("#patientAge").value,
     patientDob: currentPatientProfile()?.dob || "",

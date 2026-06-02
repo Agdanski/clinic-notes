@@ -78,6 +78,7 @@ function fieldsData() {
   $$("input[name], textarea[name], select[name]").forEach((field) => {
     fields[field.name] = field.value;
   });
+  fields.patientId = currentProfileForPatient(fields.patientName)?.patientId || fields.patientId || "";
   return fields;
 }
 
@@ -382,6 +383,7 @@ function buildSummary() {
     "",
     "Patient",
     `Patient: ${fields.patientName || "Not documented"}`,
+    `Patient ID: ${fields.patientId || "Not documented"}`,
     `Age: ${fields.patientAge || "Not documented"}`,
     `Date: ${fields.examDate || "Not documented"}`,
     `Doctor: ${fields.doctor || "Not documented"}`,
@@ -482,6 +484,7 @@ function saveProfile(record) {
   profiles[key] = {
     ...(profiles[key] || {}),
     patientName: record.fields.patientName,
+    patientId: record.fields.patientId || profiles[key]?.patientId || "",
     examMuscleFindings: record.muscleFindings,
     examOrthoFindings: record.orthoFindings,
     examNeuroFindings: record.neuroFindings,
