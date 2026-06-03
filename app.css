@@ -480,6 +480,31 @@ input[readonly] {
   transform: rotate(-12deg);
 }
 
+.shoulder-symbol.high-left .shoulder-bar {
+  transform: rotate(12deg);
+}
+
+.shoulder-symbol.high-right .shoulder-bar {
+  transform: rotate(-12deg);
+}
+
+.hip-symbol .shoulder-bar {
+  top: auto;
+  bottom: 4px;
+}
+
+.hip-symbol .shoulder-stem {
+  top: 2px;
+}
+
+.hip-symbol.high-left .shoulder-bar {
+  transform: rotate(12deg);
+}
+
+.hip-symbol.high-right .shoulder-bar {
+  transform: rotate(-12deg);
+}
+
 .group-label {
   color: var(--muted);
   font-size: 0.78rem;

@@ -6,10 +6,10 @@ const levels = [
   "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12",
   "L1", "L2", "L3", "L4", "L5", "SAC", "SI-L", "SI-R"
 ];
-const posturalItems = ["Shoulder high", "Hip high", "Foot pronation", "Long leg"];
+const posturalItems = ["Foot pronation", "Long leg"];
 const functionalItems = ["K27"];
 const muscleItems = ["Psoas", "Piriformis", "QF", "Glut", "Hamst", "Delt", "Pect", "Lats", "Other", "S. Spin"];
-const orthoItems = ["Ely's", "Yeomans", "SLR", "Int. shoulder rotation", "Ext. shoulder rotation", "Figure 4"];
+const orthoItems = ["Heel to buttock", "Ely's", "Yeomans", "SLR", "Kemp's", "Int shoulder rotation", "Ext shoulder rotation", "Figure 4"];
 const cervicalMotionItems = ["C/S rotation", "C/S lateral flexion"];
 const dtrItems = ["Triceps", "Biceps", "Radial", "Patellar", "Achilles"];
 const motorItems = ["C5", "C6", "C7", "C8", "T1", "L3", "L4", "L5", "S1"];
@@ -23,6 +23,7 @@ const cranialItems = [
   "Tongue inspection (XII)", "Babinsky"
 ];
 const compressionItems = ["Jacksons", "Spurlings"];
+const orthoResultOptions = ["L +", "L -", "R +", "R -", "Both +", "Both -"];
 
 const state = {
   choices: {},
@@ -107,6 +108,36 @@ function makeChoiceGroup(key, options, multi = false) {
   return group;
 }
 
+function levelSymbolMarkup(kind, value) {
+  if (kind === "hip") {
+    const className = value === "L" ? "high-left" : value === "R" ? "high-right" : "even";
+    return `<span class="shoulder-symbol hip-symbol ${className}" aria-hidden="true"><span class="shoulder-bar"></span><span class="shoulder-stem"></span></span>`;
+  }
+  const className = value === "L" ? "high-left" : value === "R" ? "high-right" : "even";
+  return `<span class="shoulder-symbol ${className}" aria-hidden="true"><span class="shoulder-bar"></span><span class="shoulder-stem"></span></span>`;
+}
+
+function makeLevelChoiceGroup(key, kind) {
+  const options = [
+    { value: "L", label: kind === "hip" ? "High left hip" : "High left shoulder" },
+    { value: "N", label: kind === "hip" ? "Even hips" : "Even shoulders" },
+    { value: "R", label: kind === "hip" ? "High right hip" : "High right shoulder" }
+  ];
+  const group = document.createElement("span");
+  group.className = "choice-group inline level-choice-group";
+  group.dataset.group = key;
+  options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.value = option.value;
+    button.title = option.label;
+    button.setAttribute("aria-label", option.label);
+    button.innerHTML = levelSymbolMarkup(kind, option.value);
+    group.appendChild(button);
+  });
+  return group;
+}
+
 function addRow(target, label, group) {
   const row = document.createElement("div");
   row.className = "exam-row";
@@ -140,6 +171,8 @@ function addSplitRow(target, label, groups) {
 
 function mountPosture() {
   const target = $("#postureGrid");
+  addRow(target, "Shoulder level", makeLevelChoiceGroup("posture:Shoulder high", "shoulder"));
+  addRow(target, "Hip level", makeLevelChoiceGroup("posture:Hip high", "hip"));
   posturalItems.forEach((item) => addRow(target, item, makeChoiceGroup(`posture:${item}`, ["L", "N", "R"])));
 }
 
@@ -172,7 +205,7 @@ function mountMuscles() {
 
 function mountOrthos() {
   const target = $("#orthoGrid");
-  orthoItems.forEach((item) => addRow(target, item, makeChoiceGroup(`ortho:${item}`, ["L +", "L -", "R +", "R -"], true)));
+  orthoItems.forEach((item) => addRow(target, item, makeChoiceGroup(`ortho:${item}`, orthoResultOptions, true)));
   addRow(target, "Valsalvas", makeChoiceGroup("ortho:Valsalvas", ["+", "-"]));
   cervicalMotionItems.forEach((item) => addRow(target, item, makeChoiceGroup(`motion:${item}`, ["L normal", "L decreased", "R normal", "R decreased"], true)));
 }
@@ -210,7 +243,7 @@ function mountCranial() {
 
 function mountCompression() {
   const target = $("#compressionGrid");
-  compressionItems.forEach((item) => addRow(target, item, makeChoiceGroup(`compression:${item}`, ["UR", "L AbN", "R AbN"], true)));
+  compressionItems.forEach((item) => addRow(target, item, makeChoiceGroup(`compression:${item}`, orthoResultOptions, true)));
 }
 
 function bindChoiceGroups() {
@@ -333,7 +366,7 @@ function cranialFindings() {
 }
 
 function compressionFindings() {
-  return abnormalEntries("compression:", ["UR"]);
+  return abnormalEntries("compression:").filter((line) => line.includes("+") || line.includes("AbN"));
 }
 
 function motionFindings() {
@@ -573,6 +606,13 @@ function loadExam(record) {
 
 function migrateChoices(choices) {
   const migrated = { ...choices };
+  [
+    ["ortho:Int. shoulder rotation", "ortho:Int shoulder rotation"],
+    ["ortho:Ext. shoulder rotation", "ortho:Ext shoulder rotation"]
+  ].forEach(([oldKey, newKey]) => {
+    if (migrated[oldKey] && !migrated[newKey]) migrated[newKey] = migrated[oldKey];
+    delete migrated[oldKey];
+  });
   if (migrated["level:SI FIX"]) {
     migrated["level:SI-R"] = migrated["level:SI FIX"];
     delete migrated["level:SI FIX"];

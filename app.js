@@ -18,7 +18,8 @@ function defaultSingle() {
     acuity: patientDefaults.acuity,
     treatmentStatus: "TTC",
     schedule: patientDefaults.schedule,
-    shoulderLevel: ""
+    shoulderLevel: "",
+    hipLevel: ""
   };
 }
 
@@ -96,11 +97,14 @@ const objectiveDetailItems = [
   ["Ft flare", "side"], ["Psoas", "muscleStrength"], ["Pirif", "muscleStrength"], ["Glut", "muscleStrength"],
   ["Quad", "muscleStrength"], ["Delt", "muscleStrength"], ["Ham", "muscleStrength"], ["Lat", "muscleStrength"],
   ["Torque R"], ["Torque L"], ["Low left shoulder", "shoulderLevel", "low-left"], ["Even shoulders", "shoulderLevel", "even"],
-  ["Low right shoulder", "shoulderLevel", "low-right"]
+  ["Low right shoulder", "shoulderLevel", "low-right"], ["High left hip", "hipLevel", "high-left"],
+  ["Even hips", "hipLevel", "even"], ["High right hip", "hipLevel", "high-right"]
 ];
 const orthoItems = [
-  ["Heel to buttock", "orthoSided"], ["SLR", "orthoSided"], ["Yoman's", "orthoSided"],
-  ["Valsalva's", "orthoResult"], ["Kemp's", "orthoSided"]
+  ["Heel to buttock", "orthoSided"], ["Ely's", "orthoSided"], ["Yeomans", "orthoSided"], ["SLR", "orthoSided"],
+  ["Kemp's", "orthoSided"], ["Valsalvas", "orthoResult"], ["Int shoulder rotation", "orthoSided"],
+  ["Ext shoulder rotation", "orthoSided"], ["Figure 4", "orthoSided"], ["Jacksons", "orthoSided"],
+  ["Spurlings", "orthoSided"]
 ];
 const profileAlertLabels = new Set(["NO NECK", "NOT NECK", "SOFT TISSUE ONLY", "VERY GENTLE"]);
 
@@ -141,7 +145,7 @@ function mountLine(targetId, line, items) {
     button.dataset.label = label;
     button.dataset.mode = mode || "toggle";
     if (value) button.dataset.value = value;
-    if (mode === "shoulderLevel") {
+    if (mode === "shoulderLevel" || mode === "hipLevel") {
       button.classList.add("shoulder-level-button");
       button.title = label;
     }
@@ -190,6 +194,11 @@ function handleMark(button) {
   }
   if (mode === "shoulderLevel") {
     state.single.shoulderLevel = state.single.shoulderLevel === value ? "" : value;
+    renderAll();
+    return;
+  }
+  if (mode === "hipLevel") {
+    state.single.hipLevel = state.single.hipLevel === value ? "" : value;
     renderAll();
     return;
   }
@@ -441,9 +450,21 @@ function shoulderLevelText(value) {
   return "";
 }
 
+function hipLevelText(value) {
+  if (value === "high-left") return "Hips high left";
+  if (value === "even") return "Hips even";
+  if (value === "high-right") return "Hips high right";
+  return "";
+}
+
 function shoulderLevelMarkup(value) {
   const className = value === "low-left" ? "low-left" : value === "low-right" ? "low-right" : "even";
   return `<span class="shoulder-symbol ${className}" aria-hidden="true"><span class="shoulder-bar"></span><span class="shoulder-stem"></span></span>`;
+}
+
+function hipLevelMarkup(value) {
+  const className = value === "high-left" ? "high-left" : value === "high-right" ? "high-right" : "even";
+  return `<span class="shoulder-symbol hip-symbol ${className}" aria-hidden="true"><span class="shoulder-bar"></span><span class="shoulder-stem"></span></span>`;
 }
 
 function renderButton(button) {
@@ -459,9 +480,10 @@ function renderButton(button) {
   const isTreatmentStatus = mode === "treatmentStatus";
   const isSchedulePicker = mode === "schedulePicker";
   const isShoulderLevel = mode === "shoulderLevel" && state.single.shoulderLevel === value;
+  const isHipLevel = mode === "hipLevel" && state.single.hipLevel === value;
   const isDc = isTreatmentStatus && state.single.treatmentStatus === "DC";
   const isFixed = mode === "fixed" || isAutoLevel;
-  const active = isAutoLevel || isVisitLevel || isSided || isToggle || isSingle || isShoulderLevel || isFixed || isTreatmentStatus || isSchedulePicker;
+  const active = isAutoLevel || isVisitLevel || isSided || isToggle || isSingle || isShoulderLevel || isHipLevel || isFixed || isTreatmentStatus || isSchedulePicker;
   button.classList.toggle("is-selected", active && !isVisitLevel && !isSingle && !severity);
   button.classList.toggle("is-visit", isVisitLevel);
   button.classList.toggle("is-single", isSingle);
@@ -476,6 +498,11 @@ function renderButton(button) {
   if (mode === "shoulderLevel") {
     button.setAttribute("aria-label", label);
     button.innerHTML = shoulderLevelMarkup(value);
+    return;
+  }
+  if (mode === "hipLevel") {
+    button.setAttribute("aria-label", label);
+    button.innerHTML = hipLevelMarkup(value);
     return;
   }
   button.innerHTML = `${displayLabel}${displayBadge ? `<span class="badge">${displayValue(displayBadge)}</span>` : ""}`;
@@ -712,6 +739,8 @@ function buildParts() {
   const oDetail = selectedMarks("OD");
   const shoulderLevel = shoulderLevelText(state.single.shoulderLevel);
   if (shoulderLevel) oDetail.push(shoulderLevel);
+  const hipLevel = hipLevelText(state.single.hipLevel);
+  if (hipLevel) oDetail.push(hipLevel);
   const orthos = selectedMarks("ORTHO");
   if (state.single.improvement) o.push(state.single.improvement);
   const a = selectedMarks("A");
@@ -1037,7 +1066,9 @@ function noteHasMeaningfulContent() {
     state.single.treatmentStatus === "DC" ||
     state.single.acuity !== patientDefaults.acuity ||
     state.single.improvement !== patientDefaults.improvement ||
-    state.single.schedule !== patientDefaults.schedule
+    state.single.schedule !== patientDefaults.schedule ||
+    state.single.shoulderLevel ||
+    state.single.hipLevel
   );
 }
 
