@@ -38,6 +38,8 @@ const state = {
   orthoticsPromptKey: "",
   orthoticsReminderDone: false,
   currentDraftId: null,
+  importantNotesCarriedFromSoap: false,
+  profileImportantNotesApplied: false,
   profileSubjectiveDefaultsApplied: false,
   autosaveReady: false
 };
@@ -902,6 +904,12 @@ function samePatientOrBlank(draft) {
   return String(draft.patientName || "").trim().toLowerCase() === current;
 }
 
+function sameSelectedPatient(draft) {
+  const current = currentPatientName();
+  if (!current) return false;
+  return String(draft.patientName || "").trim().toLowerCase() === current;
+}
+
 function previousDraftForCurrentVisit() {
   const visit = Number($("#visitNumber").value || 0);
   if (!visit || visit <= 2) return null;
@@ -950,19 +958,19 @@ function torqueTallyText() {
 
 function latestCarryForwardDraft() {
   return savedDrafts()
-    .filter((draft) => samePatientOrBlank(draft) && draft.importantNotes)
+    .filter(sameSelectedPatient)
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
 }
 
 function latestFrequencyDraft() {
   return savedDrafts()
-    .filter((draft) => samePatientOrBlank(draft) && draft.single && draft.single.schedule)
+    .filter((draft) => sameSelectedPatient(draft) && draft.single && draft.single.schedule)
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
 }
 
 function latestReexamDraft() {
   return savedDrafts()
-    .filter((draft) => samePatientOrBlank(draft) && draft.nextReExamAt)
+    .filter((draft) => sameSelectedPatient(draft) && draft.nextReExamAt)
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
 }
 
@@ -1221,6 +1229,8 @@ function loadNote(note) {
   state.orthoticsPromptKey = "";
   state.orthoticsReminderDone = Boolean(note.orthoticsReminderDone);
   state.currentDraftId = note.id || `draft-${Date.now()}`;
+  state.importantNotesCarriedFromSoap = true;
+  state.profileImportantNotesApplied = true;
   state.profileSubjectiveDefaultsApplied = true;
   renderAll();
   setStatus("Draft loaded.");
@@ -1277,8 +1287,9 @@ function applyPatientProfile() {
   }
   applyProfileSubjectiveDefaults(profile);
   const profileImportantNotes = profileDefaultImportantNotes(profile);
-  if (profileImportantNotes) {
+  if (profileImportantNotes && !state.importantNotesCarriedFromSoap && !state.profileImportantNotesApplied) {
     importantNotes.value = mergeImportantNotes(importantNotes.value, profileImportantNotes);
+    state.profileImportantNotesApplied = true;
   }
 }
 
@@ -1716,6 +1727,8 @@ function resetNote() {
   $("#freeNote").value = "";
   $("#dcNote").value = "";
   $("#importantNotes").value = filterProfileAlertNotes(carryForward?.importantNotes || "");
+  state.importantNotesCarriedFromSoap = Boolean(carryForward);
+  state.profileImportantNotesApplied = Boolean(carryForward);
   state.selected = {};
   state.sided = {};
   state.severity = {};
