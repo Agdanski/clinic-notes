@@ -205,11 +205,11 @@ app.put("/api/storage/:key", requireAuth, (req, res) => {
   const key = storageKey(req.params.key);
   const requestedValue = String(req.body?.value ?? "");
   const now = new Date().toISOString();
-  const storage = readStorageObject();
-  const prior = storage[key];
-  storage[key] = requestedValue;
-  const normalized = normalizePatientIdsInStorage(storage);
-  saveChangedStorageValues(storage, normalized, req.user.id, now);
+  const priorStorage = readStorageObject();
+  const prior = priorStorage[key];
+  const nextStorage = { ...priorStorage, [key]: requestedValue };
+  const normalized = normalizePatientIdsInStorage(nextStorage);
+  saveChangedStorageValues(priorStorage, normalized, req.user.id, now);
   const value = normalized[key] ?? requestedValue;
   audit(req, req.user, prior ? "storage_update" : "storage_create", "storage", key, storageSummary(key, value), { key });
   res.json({ ok: true, key, updatedAt: now });

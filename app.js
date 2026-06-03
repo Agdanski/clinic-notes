@@ -456,7 +456,7 @@ function renderButton(button) {
   const isSchedulePicker = mode === "schedulePicker";
   const isShoulderLevel = mode === "shoulderLevel" && state.single.shoulderLevel === value;
   const isDc = isTreatmentStatus && state.single.treatmentStatus === "DC";
-  const isFixed = mode === "fixed";
+  const isFixed = mode === "fixed" || isAutoLevel;
   const active = isAutoLevel || isVisitLevel || isSided || isToggle || isSingle || isShoulderLevel || isFixed || isTreatmentStatus || isSchedulePicker;
   button.classList.toggle("is-selected", active && !isVisitLevel && !isSingle && !severity);
   button.classList.toggle("is-visit", isVisitLevel);
@@ -850,6 +850,7 @@ function applyPatientProfile() {
   if (!profile) return;
   const contraindications = $("#contraindications");
   const patientAge = $("#patientAge");
+  const importantNotes = $("#importantNotes");
   const currentAge = calculateAge(profile.dob) || profile.patientAge || "";
   if (currentAge !== "" && patientAge.value !== String(currentAge)) {
     patientAge.value = currentAge;
@@ -866,6 +867,10 @@ function applyPatientProfile() {
   if (profile.neckAdjustment === "N") state.profileAlerts.push("NO NECK");
   if (profile.softTissueOnly === "Yes") state.profileAlerts.push("SOFT TISSUE ONLY");
   if (profile.intensity === "Very gentle") state.profileAlerts.push("VERY GENTLE");
+  const profileImportantNotes = String(profile.importantNotes || state.profileAlerts.join("\n")).trim();
+  if (profileImportantNotes && !importantNotes.value.trim()) {
+    importantNotes.value = profileImportantNotes;
+  }
 }
 
 function renderPatientAlerts() {

@@ -46,11 +46,14 @@ function storageId(data) {
 }
 
 function setStatus(message) {
-  $("#statusLine").textContent = message;
+  const status = $("#statusLine");
+  status.textContent = message;
+  status.classList.toggle("is-active", Boolean(message));
   window.clearTimeout(setStatus.timer);
   setStatus.timer = window.setTimeout(() => {
-    $("#statusLine").textContent = "";
-  }, 2400);
+    status.textContent = "";
+    status.classList.remove("is-active");
+  }, 6000);
 }
 
 function savedInitials() {
@@ -246,6 +249,22 @@ function combinedText(choiceKey, freeText) {
   return [choiceText(choiceKey, ""), String(freeText || "").trim()].filter(Boolean).join("; ");
 }
 
+function profileContraindications(fields) {
+  return [
+    combinedText("contraindicationOptions", fields.contraindications),
+    choiceText("familyHistory", "") ? `Family history: ${choiceText("familyHistory", "")}` : "",
+    fields.strokeRisk ? `Stroke risk: ${fields.strokeRisk}` : ""
+  ].filter(Boolean).join("; ");
+}
+
+function profileImportantNotes() {
+  return [
+    state.choices.neckAdj === "N" ? "NO NECK" : "",
+    state.choices.softTissueOnly === "Yes" ? "SOFT TISSUE ONLY" : "",
+    state.choices.intensity === "Very gentle" ? "VERY GENTLE" : ""
+  ].filter(Boolean).join("\n");
+}
+
 function linesForFields(fields, pairs) {
   return pairs.map(([label, key]) => `${label}: ${filled(fields[key])}`);
 }
@@ -369,10 +388,13 @@ function saveProfile(record) {
     patientId: fields.patientId || profiles[key]?.patientId || "",
     dob: fields.dob,
     patientAge: fields.patientAge,
-    contraindications: combinedText("contraindicationOptions", fields.contraindications),
+    contraindications: profileContraindications(fields),
+    importantNotes: profileImportantNotes(),
     neckAdjustment: state.choices.neckAdj || "",
     softTissueOnly: state.choices.softTissueOnly || "",
     intensity: state.choices.intensity || "",
+    familyHistory: state.choices.familyHistory || [],
+    strokeRisk: fields.strokeRisk || "",
     schedule: fields.frequency,
     diagnosis: fields.diagnosis,
     primarySubluxation: fields.primarySubluxation,

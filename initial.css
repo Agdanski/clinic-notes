@@ -218,6 +218,17 @@
   margin: 0 0 6px;
 }
 
+#statusLine.is-active {
+  display: block;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #286d60;
+  border-radius: 8px;
+  background: #e7f5f1;
+  color: #174d43;
+  font-weight: 900;
+}
+
 @media (max-width: 980px) {
   .patient-band,
   .clinical-grid,
