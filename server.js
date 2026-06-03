@@ -236,6 +236,22 @@ app.get("/api/patients", requireAuth, (_req, res) => {
   res.json({ patients });
 });
 
+app.post("/api/patients/reserve", requireAuth, (req, res) => {
+  const patientId = reservePatientId();
+  audit(req, req.user, "patient_id_reserve", "patient", patientId, `Reserved patient ID ${patientId}`, { patientId });
+  res.json({ patientId });
+});
+
+app.post("/api/patients", requireAuth, (req, res) => {
+  try {
+    const patient = savePatientProfile(req.body || {}, req.user.id);
+    audit(req, req.user, "patient_profile_save", "patient", patient.patientId, `Saved patient ${patient.patientName}`, { patientId: patient.patientId });
+    res.json({ patient });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not save patient." });
+  }
+});
+
 app.post("/api/users", requireAdmin, (req, res) => {
   const username = String(req.body?.username || "").trim().toLowerCase();
   const displayName = String(req.body?.displayName || username).trim();
@@ -512,6 +528,37 @@ function nextPatientId() {
   return `P${String(next).padStart(6, "0")}`;
 }
 
+function reservePatientId() {
+  const patientId = nextPatientId();
+  const key = `reserved-${patientId.toLowerCase()}`;
+  const now = new Date().toISOString();
+  db.prepare("INSERT INTO patient_ids (patient_key, patient_id, patient_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+    .run(key, patientId, `Reserved ${patientId}`, now, now);
+  return patientId;
+}
+
+function assignPatientIdToName(patientId, nameOrKey, displayName = "") {
+  const id = String(patientId || "").trim().toUpperCase();
+  const name = String(displayName || nameOrKey || "").trim();
+  const key = clinicPatientKey(nameOrKey || name);
+  if (!id || !key) return getOrCreatePatientId(nameOrKey, displayName);
+  const now = new Date().toISOString();
+  const existingByKey = db.prepare("SELECT patient_id FROM patient_ids WHERE patient_key = ?").get(key);
+  if (existingByKey && existingByKey.patient_id !== id) return existingByKey.patient_id;
+  const existingById = db.prepare("SELECT patient_key FROM patient_ids WHERE patient_id = ?").get(id);
+  if (existingById && existingById.patient_key !== key && !existingById.patient_key.startsWith("reserved-")) {
+    throw new Error(`Patient ID ${id} already belongs to another patient.`);
+  }
+  if (existingById) {
+    db.prepare("UPDATE patient_ids SET patient_key = ?, patient_name = ?, updated_at = ? WHERE patient_id = ?")
+      .run(key, name || key, now, id);
+    return id;
+  }
+  db.prepare("INSERT INTO patient_ids (patient_key, patient_id, patient_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+    .run(key, id, name || key, now, now);
+  return id;
+}
+
 function getOrCreatePatientId(nameOrKey, displayName = "") {
   const name = String(displayName || nameOrKey || "").trim();
   const key = clinicPatientKey(nameOrKey || name);
@@ -528,6 +575,61 @@ function getOrCreatePatientId(nameOrKey, displayName = "") {
   db.prepare("INSERT INTO patient_ids (patient_key, patient_id, patient_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
     .run(key, patientId, name || key, now, now);
   return patientId;
+}
+
+function patientDisplayName(data) {
+  const firstName = String(data.firstName || "").trim();
+  const middleName = String(data.middleName || "").trim();
+  const lastName = String(data.lastName || "").trim();
+  const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ").trim();
+  return String(data.patientName || fullName || data.preferredName || data.janePatientNumber || "").trim();
+}
+
+function profileKeyForPatient(data) {
+  const name = patientDisplayName(data);
+  return patientKey(name);
+}
+
+function findProfileKeyByJaneId(profiles, janePatientNumber) {
+  const jane = String(janePatientNumber || "").trim().toLowerCase();
+  if (!jane) return "";
+  return Object.entries(profiles).find(([, profile]) => (
+    String(profile?.janePatientNumber || "").trim().toLowerCase() === jane
+  ))?.[0] || "";
+}
+
+function savePatientProfile(data, userId) {
+  const displayName = patientDisplayName(data);
+  if (!displayName) throw new Error("Patient name is required.");
+  const storage = readStorageObject();
+  const storageKeyName = "clinic-patient-profiles-v1";
+  const profiles = parseStorageJson(storage[storageKeyName], {});
+  const existingJaneKey = findProfileKeyByJaneId(profiles, data.janePatientNumber);
+  const profileKey = existingJaneKey || profileKeyForPatient(data);
+  const existing = profiles[profileKey] || {};
+  const patientId = existing.patientId
+    || (data.patientId ? assignPatientIdToName(data.patientId, displayName, displayName) : getOrCreatePatientId(displayName, displayName));
+  const now = new Date().toISOString();
+  profiles[profileKey] = {
+    ...existing,
+    patientName: displayName,
+    patientId,
+    firstName: String(data.firstName || existing.firstName || "").trim(),
+    middleName: String(data.middleName || existing.middleName || "").trim(),
+    lastName: String(data.lastName || existing.lastName || "").trim(),
+    preferredName: String(data.preferredName || existing.preferredName || "").trim(),
+    janePatientNumber: String(data.janePatientNumber || existing.janePatientNumber || "").trim(),
+    dob: String(data.dob || existing.dob || "").trim(),
+    patientAge: String(data.patientAge || "").trim(),
+    needsManualVisitNumber: Boolean(data.needsManualVisitNumber || existing.needsManualVisitNumber),
+    source: String(data.source || existing.source || "manual"),
+    updatedAt: now
+  };
+  if (!existing.createdAt) profiles[profileKey].createdAt = now;
+  const before = { ...storage };
+  const after = { ...storage, [storageKeyName]: JSON.stringify(profiles) };
+  saveChangedStorageValues(before, after, userId, now);
+  return profiles[profileKey];
 }
 
 function readStorageObject() {
@@ -571,7 +673,9 @@ function normalizeProfiles(storage) {
   Object.entries(profiles).forEach(([profileKey, profile]) => {
     if (!profile || typeof profile !== "object" || Array.isArray(profile)) return;
     const patientName = String(profile.patientName || profileKey || "").trim();
-    const patientId = getOrCreatePatientId(patientName || profileKey, patientName);
+    const patientId = profile.patientId
+      ? assignPatientIdToName(profile.patientId, patientName || profileKey, patientName)
+      : getOrCreatePatientId(patientName || profileKey, patientName);
     if (patientId && profile.patientId !== patientId) {
       profile.patientId = patientId;
       changed = true;

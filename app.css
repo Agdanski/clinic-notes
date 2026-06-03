@@ -226,6 +226,20 @@ input[readonly] {
   border: 1px solid var(--visit-border);
 }
 
+.manual-visit-warning {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 2px solid #9f2f2f;
+  border-radius: 8px;
+  background: #fff1f1;
+  color: #9f2f2f;
+  font-weight: 900;
+}
+
+.manual-visit-warning[hidden] {
+  display: none;
+}
+
 .patient-alerts {
   display: flex;
   flex-wrap: wrap;

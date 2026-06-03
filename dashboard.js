@@ -62,6 +62,8 @@ const $ = (selector) => document.querySelector(selector);
 let lastMappedConsent = null;
 let selectedPatient = null;
 let patientDirectory = [];
+let reservedManualPatientId = "";
+let janeBatchRows = [];
 
 function setStatus(message) {
   $("#statusLine").textContent = message;
@@ -162,8 +164,14 @@ function patientProfileList() {
       patientKey: key,
       patientId: profile?.patientId || "",
       patientName: profile?.patientName || key,
+      firstName: profile?.firstName || "",
+      middleName: profile?.middleName || "",
+      lastName: profile?.lastName || "",
+      preferredName: profile?.preferredName || "",
+      janePatientNumber: profile?.janePatientNumber || "",
       dob: profile?.dob || "",
       patientAge: displayAge(profile),
+      needsManualVisitNumber: Boolean(profile?.needsManualVisitNumber),
       source: "profile"
     }))
     .filter((patient) => patient.patientName);
@@ -195,7 +203,13 @@ function mergePatients(profilePatients, serverPatients) {
       ...patient,
       dob: prior.dob || patient.dob || "",
       patientAge: prior.patientAge || patient.patientAge || "",
-      patientId: patient.patientId || prior.patientId || ""
+      patientId: patient.patientId || prior.patientId || "",
+      firstName: prior.firstName || patient.firstName || "",
+      middleName: prior.middleName || patient.middleName || "",
+      lastName: prior.lastName || patient.lastName || "",
+      preferredName: prior.preferredName || patient.preferredName || "",
+      janePatientNumber: prior.janePatientNumber || patient.janePatientNumber || "",
+      needsManualVisitNumber: Boolean(prior.needsManualVisitNumber || patient.needsManualVisitNumber)
     });
   });
   return [...merged.values()].sort((a, b) => a.patientName.localeCompare(b.patientName));
@@ -233,20 +247,27 @@ function updatePatientFileLinks() {
 
 function renderSelectedPatient() {
   const card = $("#selectedPatientCard");
-  const status = $("#selectedPatientStatus");
-  if (!card || !status) return;
+  if (!card) return;
+  const openButton = $("#fileSoap");
   if (!selectedPatient) {
-    status.textContent = "No patient selected";
-    card.innerHTML = "<p>Search for a patient or create a new patient to open their file.</p>";
+    card.innerHTML = "<p>Search for a patient, select the correct result, then open the patient file.</p>";
+    if (openButton) {
+      openButton.classList.add("is-disabled");
+      openButton.setAttribute("aria-disabled", "true");
+    }
     updatePatientFileLinks();
     return;
   }
-  status.textContent = selectedPatient.patientId || "Patient ID pending";
+  if (openButton) {
+    openButton.classList.remove("is-disabled");
+    openButton.setAttribute("aria-disabled", "false");
+  }
   const age = displayAge(selectedPatient) || "Not documented";
   card.innerHTML = `
     <h3>${escapeHtml(selectedPatient.patientName)}</h3>
     <dl>
       <dt>ID</dt><dd>${escapeHtml(selectedPatient.patientId || "Assigned after server save")}</dd>
+      <dt>Jane ID</dt><dd>${escapeHtml(selectedPatient.janePatientNumber || "Not documented")}</dd>
       <dt>DOB</dt><dd>${escapeHtml(selectedPatient.dob || "Not documented")}</dd>
       <dt>Age</dt><dd>${escapeHtml(age)}</dd>
     </dl>
@@ -258,8 +279,14 @@ function selectPatient(patient, options = {}) {
   selectedPatient = {
     patientName: patient.patientName || "",
     patientId: patient.patientId || "",
+    firstName: patient.firstName || "",
+    middleName: patient.middleName || "",
+    lastName: patient.lastName || "",
+    preferredName: patient.preferredName || "",
+    janePatientNumber: patient.janePatientNumber || "",
     dob: patient.dob || "",
-    patientAge: displayAge(patient)
+    patientAge: displayAge(patient),
+    needsManualVisitNumber: Boolean(patient.needsManualVisitNumber)
   };
   if ($("#patientName")) $("#patientName").value = selectedPatient.patientName;
   if ($("#dob") && selectedPatient.dob) $("#dob").value = selectedPatient.dob;
@@ -269,10 +296,19 @@ function selectPatient(patient, options = {}) {
   if (!options.silent) setStatus(`Opened patient file: ${selectedPatient.patientName}`);
 }
 
+function dateSearchVariants(isoDate) {
+  const match = String(isoDate || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return [];
+  const [, yyyy, mm, dd] = match;
+  return [`${mm}/${dd}/${yyyy}`, `${dd}/${mm}/${yyyy}`, `${yyyy}/${mm}/${dd}`];
+}
+
 function renderPatientSearchResults() {
   const mount = $("#patientSearchResults");
   if (!mount) return;
-  const query = patientKey($("#patientSearch")?.value || "");
+  const rawQuery = $("#patientSearch")?.value || "";
+  const query = patientKey(rawQuery);
+  const parsedDateQuery = parseDate(rawQuery);
   mount.innerHTML = "";
   if (!query) {
     mount.innerHTML = patientDirectory.length
@@ -282,8 +318,19 @@ function renderPatientSearchResults() {
   }
   const matches = patientDirectory
     .filter((patient) => {
-      const id = String(patient.patientId || "").toLowerCase();
-      return patientKey(patient.patientName).includes(query) || id.includes(query);
+      const haystack = [
+        patient.patientName,
+        patient.firstName,
+        patient.middleName,
+        patient.lastName,
+        patient.preferredName,
+        patient.janePatientNumber,
+        patient.patientId,
+        patient.dob,
+        ...dateSearchVariants(patient.dob),
+        displayAge(patient)
+      ].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(query) || Boolean(parsedDateQuery && haystack.includes(parsedDateQuery));
     })
     .slice(0, 12);
   if (!matches.length) {
@@ -297,7 +344,7 @@ function renderPatientSearchResults() {
     button.innerHTML = `
       <span>
         <span class="patient-result-main">${escapeHtml(patient.patientName)}</span>
-        <span class="patient-result-meta">${escapeHtml([patient.patientId, patient.dob, age ? `Age ${age}` : ""].filter(Boolean).join(" | "))}</span>
+        <span class="patient-result-meta">${escapeHtml([patient.patientId, patient.janePatientNumber ? `Jane ${patient.janePatientNumber}` : "", patient.dob, age ? `Age ${age}` : ""].filter(Boolean).join(" | "))}</span>
       </span>
     `;
     button.addEventListener("click", () => selectPatient(patient));
@@ -305,42 +352,230 @@ function renderPatientSearchResults() {
   });
 }
 
-async function createManualPatient() {
-  const name = $("#manualPatientName").value.trim();
-  const dob = $("#manualDob").value;
-  const age = calculateAge(dob);
-  const status = $("#manualPatientStatus");
-  if (!name) {
-    status.textContent = "Patient name is required.";
-    return;
+function fullPatientName(patient) {
+  const full = [patient.firstName, patient.middleName, patient.lastName].map((part) => String(part || "").trim()).filter(Boolean).join(" ");
+  return full || String(patient.patientName || patient.preferredName || "").trim();
+}
+
+async function reserveManualPatientId() {
+  if (reservedManualPatientId) return reservedManualPatientId;
+  const fallback = `PENDING-${Date.now()}`;
+  if (!window.ClinicServer) {
+    reservedManualPatientId = fallback;
+    return reservedManualPatientId;
+  }
+  const response = await fetch("/api/patients/reserve", {
+    method: "POST",
+    credentials: "same-origin"
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Could not reserve a patient ID.");
+  reservedManualPatientId = data.patientId || fallback;
+  return reservedManualPatientId;
+}
+
+async function savePatient(patient, options = {}) {
+  if (window.ClinicServer) {
+    const response = await fetch("/api/patients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(patient)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not save patient.");
+    if (options.refresh !== false) await refreshServerStorage();
+    return data.patient || patient;
   }
   const profiles = readJson(PROFILE_STORAGE_KEY, {});
+  const name = fullPatientName(patient);
   const key = patientKey(name);
   profiles[key] = {
     ...(profiles[key] || {}),
+    ...patient,
     patientName: name,
-    dob,
-    patientAge: age,
-    createdManuallyAt: profiles[key]?.createdManuallyAt || new Date().toISOString(),
+    patientId: patient.patientId || profiles[key]?.patientId || `LOCAL-${Date.now()}`,
+    patientAge: calculateAge(patient.dob),
     updatedAt: new Date().toISOString()
   };
   writeJson(PROFILE_STORAGE_KEY, profiles);
-  status.textContent = window.ClinicServer ? "Creating patient on server." : "Patient created in this browser.";
+  return profiles[key];
+}
+
+async function startManualPatient() {
+  $("#manualPatientForm").hidden = false;
+  $("#manualPatientStatus").textContent = "Reserving patient number.";
   try {
-    await syncStorageKeyToServer(PROFILE_STORAGE_KEY);
-    await refreshServerStorage();
+    const patientId = await reserveManualPatientId();
+    $("#manualPatientId").textContent = patientId;
+    $("#manualPatientStatus").textContent = "Patient number reserved. Complete the fields and save.";
+  } catch (error) {
+    console.error(error);
+    $("#manualPatientStatus").textContent = error.message;
+  }
+}
+
+async function createManualPatient() {
+  const firstName = $("#manualFirstName").value.trim();
+  const middleName = $("#manualMiddleName").value.trim();
+  const lastName = $("#manualLastName").value.trim();
+  const preferredName = $("#manualPreferredName").value.trim();
+  const janePatientNumber = $("#manualJanePatientNumber").value.trim();
+  const dob = $("#manualDob").value;
+  const age = calculateAge(dob);
+  const status = $("#manualPatientStatus");
+  const name = fullPatientName({ firstName, middleName, lastName, preferredName });
+  if (!name) {
+    status.textContent = "First name, last name, or preferred name is required.";
+    return;
+  }
+  const patient = {
+    patientId: reservedManualPatientId,
+    patientName: name,
+    firstName,
+    middleName,
+    lastName,
+    preferredName,
+    janePatientNumber,
+    dob,
+    patientAge: age,
+    needsManualVisitNumber: false,
+    source: "manual"
+  };
+  status.textContent = window.ClinicServer ? "Saving patient on server." : "Patient created in this browser.";
+  try {
+    const saved = await savePatient(patient);
+    reservedManualPatientId = "";
     await loadPatientDirectory();
-    const created = patientDirectory.find((patient) => patientKey(patient.patientName) === patientKey(name)) || profiles[key];
+    const created = patientDirectory.find((item) => item.patientId === saved.patientId || patientKey(item.patientName) === patientKey(saved.patientName)) || saved;
     selectPatient(created, { silent: true });
-    status.textContent = selectedPatient.patientId
-      ? `Patient created: ${selectedPatient.patientId}`
-      : "Patient created. ID will appear after the server refreshes.";
-    $("#manualPatientName").value = "";
+    status.textContent = `Patient saved: ${selectedPatient.patientId || saved.patientId}`;
+    $("#manualFirstName").value = "";
+    $("#manualMiddleName").value = "";
+    $("#manualLastName").value = "";
+    $("#manualPreferredName").value = "";
+    $("#manualJanePatientNumber").value = "";
     $("#manualDob").value = "";
     $("#manualPatientAge").value = "";
+    $("#manualPatientId").textContent = "Not assigned yet";
+    $("#manualPatientForm").hidden = true;
   } catch (error) {
     console.error(error);
     status.textContent = error.message;
+  }
+}
+
+function normalizeHeader(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function rowValue(row, aliases) {
+  const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeader(key), value]));
+  for (const alias of aliases) {
+    const value = normalized[normalizeHeader(alias)];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return typeof value === "string" ? value.trim() : value;
+    }
+  }
+  return "";
+}
+
+function excelDateToIso(value) {
+  if (!value) return "";
+  if (typeof value === "number") {
+    const utcDays = Math.floor(value - 25569);
+    const date = new Date(utcDays * 86400 * 1000);
+    if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+  }
+  const parsed = parseDate(String(value));
+  if (parsed) return parsed;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
+function mapJaneBatchRow(row) {
+  const patient = {
+    janePatientNumber: rowValue(row, ["Jane Patient Number", "Patient Number", "Patient ID", "Client ID", "Jane ID", "ID"]),
+    firstName: rowValue(row, ["First Name", "Firstname", "Given Name"]),
+    middleName: rowValue(row, ["Middle Name", "Middlename"]),
+    lastName: rowValue(row, ["Last Name", "Lastname", "Surname", "Family Name"]),
+    preferredName: rowValue(row, ["Preferred Name", "Preferred", "Nickname"]),
+    dob: excelDateToIso(rowValue(row, ["Date of Birth", "Birth Date", "DOB", "Birthday"])),
+    source: "jane-batch",
+    needsManualVisitNumber: true
+  };
+  patient.patientName = fullPatientName(patient);
+  patient.patientAge = calculateAge(patient.dob);
+  return patient;
+}
+
+async function readJaneBatchRows() {
+  const file = $("#janeBatchFile").files[0];
+  if (!file) throw new Error("Choose the Jane XLSX file first.");
+  if (!window.XLSX) throw new Error("XLSX importer did not load. Check internet access or add the local XLSX library.");
+  const buffer = await file.arrayBuffer();
+  const workbook = window.XLSX.read(buffer, { type: "array", cellDates: false });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  return rows.map(mapJaneBatchRow).filter((patient) => patient.patientName || patient.janePatientNumber);
+}
+
+function renderJaneBatchPreview() {
+  const mount = $("#janeBatchPreview");
+  mount.innerHTML = "";
+  if (!janeBatchRows.length) {
+    mount.innerHTML = "<p class=\"patient-result-meta\">No patients ready to import.</p>";
+    return;
+  }
+  janeBatchRows.slice(0, 12).forEach((patient) => {
+    const card = document.createElement("article");
+    card.innerHTML = `
+      <strong>${escapeHtml(patient.patientName || "Unnamed patient")}</strong>
+      <span>${escapeHtml([patient.janePatientNumber ? `Jane ${patient.janePatientNumber}` : "", patient.dob, patient.patientAge ? `Age ${patient.patientAge}` : ""].filter(Boolean).join(" | "))}</span>
+    `;
+    mount.appendChild(card);
+  });
+  if (janeBatchRows.length > 12) {
+    const more = document.createElement("p");
+    more.className = "patient-result-meta";
+    more.textContent = `${janeBatchRows.length - 12} more patients not shown.`;
+    mount.appendChild(more);
+  }
+}
+
+async function previewJaneBatch() {
+  const status = $("#janeBatchStatus");
+  status.textContent = "Reading Jane file.";
+  try {
+    janeBatchRows = await readJaneBatchRows();
+    renderJaneBatchPreview();
+    status.textContent = `${janeBatchRows.length} patient${janeBatchRows.length === 1 ? "" : "s"} ready to import.`;
+  } catch (error) {
+    console.error(error);
+    status.textContent = error.message;
+  }
+}
+
+async function importJaneBatch() {
+  const status = $("#janeBatchStatus");
+  if (!janeBatchRows.length) {
+    await previewJaneBatch();
+    if (!janeBatchRows.length) return;
+  }
+  status.textContent = "Importing Jane patients.";
+  let count = 0;
+  try {
+    for (const patient of janeBatchRows) {
+      await savePatient(patient, { refresh: false });
+      count += 1;
+    }
+    await refreshServerStorage();
+    await loadPatientDirectory();
+    status.textContent = `Imported ${count} patient${count === 1 ? "" : "s"} from Jane.`;
+  } catch (error) {
+    console.error(error);
+    status.textContent = `Imported ${count}. ${error.message}`;
   }
 }
 
@@ -1509,7 +1744,10 @@ $("#parseText").addEventListener("click", parseText);
 $("#applyImport").addEventListener("click", applyImport);
 $("#extractReport").addEventListener("click", extractDiagnosticReport);
 $("#applyReport").addEventListener("click", applyDiagnosticReport);
+$("#startManualPatient").addEventListener("click", startManualPatient);
 $("#createManualPatient").addEventListener("click", createManualPatient);
+$("#previewJaneBatch").addEventListener("click", previewJaneBatch);
+$("#importJaneBatch").addEventListener("click", importJaneBatch);
 $("#manualDob").addEventListener("input", () => {
   $("#manualPatientAge").value = calculateAge($("#manualDob").value);
 });

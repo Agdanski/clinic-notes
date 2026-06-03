@@ -18,11 +18,10 @@
         <h1>SOAP note</h1>
       </div>
       <div class="actions">
-        <a class="button-link" href="dashboard.html">Dashboard</a>
-        <a class="button-link" href="initial.html">Initial</a>
-        <a class="button-link" href="consent.html">Consent</a>
-        <a class="button-link" href="exam.html">Exam</a>
-        <a class="button-link" href="demo.html">Demo</a>
+        <a class="button-link patient-nav-link" id="navDashboard" href="dashboard.html">Dashboard</a>
+        <a class="button-link patient-nav-link" id="navInitial" href="initial.html">Initial</a>
+        <a class="button-link patient-nav-link" id="navConsent" href="consent.html">Consent</a>
+        <a class="button-link patient-nav-link" id="navExam" href="exam.html">Exam</a>
         <button type="button" id="historyNote">History</button>
         <button type="button" id="saveNote">Save</button>
         <button type="button" id="exportNote">Export</button>
@@ -81,6 +80,9 @@
         </label>
         <strong class="reexam-flag" id="reexamFlag">Re-exam visit</strong>
         <strong class="next-reexam-flag" id="nextReexamFlag"></strong>
+      </div>
+      <div class="manual-visit-warning" id="manualVisitWarning" hidden>
+        Visit number required. Check the existing paper file and enter the current visit number before saving this SOAP note.
       </div>
 
       <div class="patient-alerts" id="patientAlerts" hidden></div>

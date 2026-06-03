@@ -482,6 +482,8 @@ function renderAll() {
   $$(".mark[data-line]").forEach(renderButton);
   updateDateParts();
   updateReexamFlag();
+  renderManualVisitWarning();
+  updatePatientNavLinks();
   renderPatientAlerts();
   renderDcNote();
   renderOrthos();
@@ -504,6 +506,34 @@ function updateReexamFlag() {
   $("#visitRow").classList.toggle("is-reexam", isReexam);
   $("#reexamFlag").textContent = isReexam ? `RE-EXAM VISIT #${visit}` : "Re-exam visit";
   $("#nextReexamFlag").textContent = isReexam ? `Next re-exam: visit ${visit + 12}` : "";
+}
+
+function manualVisitNumberRequired() {
+  return Boolean(currentPatientProfile()?.needsManualVisitNumber && !String($("#visitNumber").value || "").trim());
+}
+
+function renderManualVisitWarning() {
+  const warning = $("#manualVisitWarning");
+  if (!warning) return;
+  warning.hidden = !manualVisitNumberRequired();
+}
+
+function patientNavUrl(page) {
+  const patient = $("#patientName").value.trim();
+  return patient ? `${page}?patient=${encodeURIComponent(patient)}` : page;
+}
+
+function updatePatientNavLinks() {
+  const links = [
+    ["navDashboard", "dashboard.html"],
+    ["navInitial", "initial.html"],
+    ["navConsent", "consent.html"],
+    ["navExam", "exam.html"]
+  ];
+  links.forEach(([id, page]) => {
+    const link = document.getElementById(id);
+    if (link) link.href = patientNavUrl(page);
+  });
 }
 
 function selectedMarks(line) {
@@ -907,6 +937,7 @@ function persistDraft(statusMessage) {
 
 function scheduleAutosave() {
   if (!state.autosaveReady || !noteHasMeaningfulContent()) return;
+  if (manualVisitNumberRequired()) return;
   window.clearTimeout(autosaveTimer);
   autosaveTimer = window.setTimeout(() => {
     persistDraft("Autosaved.");
@@ -942,6 +973,9 @@ function loadRequestedNoteFromUrl() {
   }
 
   $("#patientName").value = params.get("patient");
+  if (currentPatientProfile()?.needsManualVisitNumber) {
+    $("#visitNumber").value = "";
+  }
   renderAll();
 }
 
@@ -1089,12 +1123,21 @@ function validateDcNote() {
   return false;
 }
 
+function validateVisitNumber() {
+  if (!manualVisitNumberRequired()) return true;
+  $("#visitNumber").focus();
+  setStatus("Visit number required from the paper file.");
+  return false;
+}
+
 function saveDraft() {
+  if (!validateVisitNumber()) return;
   if (!validateDcNote()) return;
   persistDraft(window.ClinicServer ? "Draft saved to the clinic server." : "Draft saved on this device.");
 }
 
 function exportNote() {
+  if (!validateVisitNumber()) return;
   if (!validateDcNote()) return;
   const draft = noteData();
   const text = buildSummary();
@@ -1109,6 +1152,7 @@ function exportNote() {
 }
 
 function printNote() {
+  if (!validateVisitNumber()) return;
   if (!validateDcNote()) return;
   window.print();
 }

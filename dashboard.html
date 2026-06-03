@@ -19,67 +19,93 @@
         <p class="eyebrow">Staff dashboard</p>
         <h1>Clinic dashboard</h1>
       </div>
-      <div class="actions">
-        <a class="button-link" href="initial.html">Initial</a>
-        <a class="button-link" href="consent.html">Consent</a>
-        <a class="button-link" href="exam.html">Exam</a>
-        <a class="button-link" href="index.html">SOAP</a>
-        <a class="button-link" href="demo.html">Demo</a>
-      </div>
+      <div class="actions"></div>
     </header>
 
-    <section class="sheet dashboard-home">
-      <section class="dashboard-panel patient-create-panel">
+    <section class="dashboard-workflows">
+      <section class="sheet dashboard-task find-patient-task">
         <div class="section-head">
-          <h2>Add New Patient Manually</h2>
-          <span>Creates patient ID</span>
+          <h2>Find Patient And Open File</h2>
+          <span>Most used</span>
         </div>
-        <div class="field-grid three">
-          <label>
-            <span>Patient name</span>
-            <input id="manualPatientName" autocomplete="off">
-          </label>
-          <label>
-            <span>Date of birth</span>
-            <input id="manualDob" type="date">
-          </label>
-          <label>
-            <span>Age</span>
-            <input id="manualPatientAge" inputmode="numeric" readonly>
-          </label>
-        </div>
-        <div class="dashboard-actions">
-          <button type="button" id="createManualPatient">Create patient</button>
-        </div>
-        <output id="manualPatientStatus" aria-live="polite"></output>
-      </section>
-
-      <section class="dashboard-panel patient-search-panel">
-        <div class="section-head">
-          <h2>Open Patient File</h2>
-          <span>Search name or ID</span>
-        </div>
-        <label>
-          <span>Patient search</span>
-          <input id="patientSearch" placeholder="Type patient name or P000001" autocomplete="off">
+        <label class="dashboard-search-label">
+          <span>Search by first name, last name, Jane ID, app patient ID, or birth date</span>
+          <input id="patientSearch" placeholder="Example: Allan, Gdanski, 1975-04-12, Jane ID, or P000001" autocomplete="off">
         </label>
         <div id="patientSearchResults" class="patient-search-results"></div>
+        <div class="selected-patient-row">
+          <div id="selectedPatientCard" class="selected-patient-card">
+            <p>Search for a patient, select the correct result, then open the patient file.</p>
+          </div>
+          <a class="button-link open-file-button is-disabled" id="fileSoap" href="index.html" aria-disabled="true">Open Patient File</a>
+        </div>
       </section>
 
-      <section class="dashboard-panel patient-file-panel">
+      <section class="sheet dashboard-task">
         <div class="section-head">
-          <h2>Patient File</h2>
-          <span id="selectedPatientStatus">No patient selected</span>
+          <h2>Add New Patient</h2>
+          <span>Manual entry</span>
         </div>
-        <div id="selectedPatientCard" class="selected-patient-card">
-          <p>Search for a patient or create a new patient to open their file.</p>
+        <div class="dashboard-actions">
+          <button type="button" id="startManualPatient">Add a New Patient</button>
         </div>
-        <div class="dashboard-actions patient-file-actions">
-          <a class="button-link" id="fileInitial" href="initial.html">Initial</a>
-          <a class="button-link" id="fileConsent" href="consent.html">Consent</a>
-          <a class="button-link" id="fileExam" href="exam.html">Exam</a>
-          <a class="button-link" id="fileSoap" href="index.html">SOAP</a>
+        <div id="manualPatientForm" class="manual-patient-form" hidden>
+          <div class="patient-id-preview">
+            <span>New app patient number</span>
+            <strong id="manualPatientId">Not assigned yet</strong>
+          </div>
+          <div class="field-grid three">
+            <label>
+              <span>First name</span>
+              <input id="manualFirstName" autocomplete="off">
+            </label>
+            <label>
+              <span>Middle name</span>
+              <input id="manualMiddleName" autocomplete="off">
+            </label>
+            <label>
+              <span>Last name</span>
+              <input id="manualLastName" autocomplete="off">
+            </label>
+            <label>
+              <span>Preferred name</span>
+              <input id="manualPreferredName" autocomplete="off">
+            </label>
+            <label>
+              <span>Jane patient number</span>
+              <input id="manualJanePatientNumber" autocomplete="off">
+            </label>
+            <label>
+              <span>Birth date</span>
+              <input id="manualDob" type="date">
+            </label>
+            <label>
+              <span>Age</span>
+              <input id="manualPatientAge" inputmode="numeric" readonly>
+            </label>
+          </div>
+          <div class="dashboard-actions">
+            <button type="button" id="createManualPatient">Save New Patient</button>
+          </div>
+          <output id="manualPatientStatus" aria-live="polite"></output>
         </div>
+      </section>
+
+      <section class="sheet dashboard-task">
+        <div class="section-head">
+          <h2>Import Multiple Patients From Jane</h2>
+          <span>XLSX batch</span>
+        </div>
+        <label>
+          <span>Jane patient export</span>
+          <input id="janeBatchFile" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+        </label>
+        <div class="dashboard-actions">
+          <button type="button" id="previewJaneBatch">Preview Import</button>
+          <button type="button" id="importJaneBatch">Import Patients</button>
+        </div>
+        <output id="janeBatchStatus" aria-live="polite"></output>
+        <div id="janeBatchPreview" class="batch-preview"></div>
       </section>
     </section>
 
@@ -227,6 +253,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="central-storage.js"></script>
   <script src="dashboard.js"></script>
 </body>

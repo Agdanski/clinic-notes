@@ -104,15 +104,21 @@
       const response = await fetch("/api/me", { credentials: "same-origin" });
       if (!response.ok) return;
       const { user } = await response.json();
-      const bar = document.createElement("div");
-      bar.className = "server-user-bar";
-      const adminLink = user.role === "admin" ? '<a href="admin.html">Admin</a>' : "";
-      bar.innerHTML = `
-        <span>Signed in: <strong>${escapeHtml(user.displayName || user.username)}</strong> (${escapeHtml(user.role)})</span>
-        ${adminLink}
-        <button type="button" id="serverLogout">Logout</button>
-      `;
-      document.body.appendChild(bar);
+      const actions = document.querySelector(".topbar .actions");
+      if (!actions) return;
+      if (user.role === "admin" && !document.getElementById("serverAdminLink")) {
+        const adminLink = document.createElement("a");
+        adminLink.className = "button-link";
+        adminLink.id = "serverAdminLink";
+        adminLink.href = "admin.html";
+        adminLink.textContent = "Admin";
+        actions.appendChild(adminLink);
+      }
+      const logout = document.createElement("button");
+      logout.type = "button";
+      logout.id = "serverLogout";
+      logout.textContent = "Logout";
+      actions.appendChild(logout);
       document.getElementById("serverLogout").addEventListener("click", async () => {
         await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
         syncing = true;
