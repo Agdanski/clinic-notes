@@ -65,8 +65,14 @@ let patientDirectory = [];
 let reservedManualPatientId = "";
 let janeBatchRows = [];
 
+function on(id, eventName, handler) {
+  const element = document.getElementById(id);
+  if (element) element.addEventListener(eventName, handler);
+}
+
 function setStatus(message) {
-  $("#statusLine").textContent = message;
+  const status = $("#statusLine") || $("#manualPatientStatus") || $("#janeBatchStatus");
+  if (status) status.textContent = message;
 }
 
 function readJson(key, fallback) {
@@ -250,7 +256,8 @@ function renderSelectedPatient() {
   if (!card) return;
   const openButton = $("#fileSoap");
   if (!selectedPatient) {
-    card.innerHTML = "<p>Search for a patient, select the correct result, then open the patient file.</p>";
+    card.hidden = true;
+    card.innerHTML = "";
     if (openButton) {
       openButton.classList.add("is-disabled");
       openButton.setAttribute("aria-disabled", "true");
@@ -258,6 +265,7 @@ function renderSelectedPatient() {
     updatePatientFileLinks();
     return;
   }
+  card.hidden = false;
   if (openButton) {
     openButton.classList.remove("is-disabled");
     openButton.setAttribute("aria-disabled", "false");
@@ -311,9 +319,7 @@ function renderPatientSearchResults() {
   const parsedDateQuery = parseDate(rawQuery);
   mount.innerHTML = "";
   if (!query) {
-    mount.innerHTML = patientDirectory.length
-      ? "<p class=\"patient-result-meta\">Type a name or patient ID to search.</p>"
-      : "<p class=\"patient-result-meta\">No patients found yet.</p>";
+    mount.innerHTML = patientDirectory.length ? "" : "<p class=\"patient-result-meta\">No patients found yet.</p>";
     return;
   }
   const matches = patientDirectory
@@ -1452,11 +1458,11 @@ async function applyConsentImport(data) {
 }
 
 function updateLinks() {
-  const patient = encodeURIComponent($("#patientName").value.trim());
-  $("#openInitial").href = patient ? `initial.html?patient=${patient}` : "initial.html";
-  $("#openConsent").href = patient ? `consent.html?patient=${patient}` : "consent.html";
-  $("#openExam").href = patient ? `exam.html?patient=${patient}` : "exam.html";
-  $("#openSoap").href = patient ? `index.html?patient=${patient}` : "index.html";
+  const patient = encodeURIComponent($("#patientName")?.value?.trim() || selectedPatient?.patientName || "");
+  if ($("#openInitial")) $("#openInitial").href = patient ? `initial.html?patient=${patient}` : "initial.html";
+  if ($("#openConsent")) $("#openConsent").href = patient ? `consent.html?patient=${patient}` : "consent.html";
+  if ($("#openExam")) $("#openExam").href = patient ? `exam.html?patient=${patient}` : "exam.html";
+  if ($("#openSoap")) $("#openSoap").href = patient ? `index.html?patient=${patient}` : "index.html";
   updatePatientFileLinks();
   renderReportList();
 }
@@ -1739,30 +1745,30 @@ function parseText() {
   setStatus("Mapped fields. Please review before applying.");
 }
 
-$("#extractText").addEventListener("click", extractTextFromFile);
-$("#parseText").addEventListener("click", parseText);
-$("#applyImport").addEventListener("click", applyImport);
-$("#extractReport").addEventListener("click", extractDiagnosticReport);
-$("#applyReport").addEventListener("click", applyDiagnosticReport);
-$("#startManualPatient").addEventListener("click", startManualPatient);
-$("#createManualPatient").addEventListener("click", createManualPatient);
-$("#previewJaneBatch").addEventListener("click", previewJaneBatch);
-$("#importJaneBatch").addEventListener("click", importJaneBatch);
-$("#manualDob").addEventListener("input", () => {
+on("extractText", "click", extractTextFromFile);
+on("parseText", "click", parseText);
+on("applyImport", "click", applyImport);
+on("extractReport", "click", extractDiagnosticReport);
+on("applyReport", "click", applyDiagnosticReport);
+on("startManualPatient", "click", startManualPatient);
+on("createManualPatient", "click", createManualPatient);
+on("previewJaneBatch", "click", previewJaneBatch);
+on("importJaneBatch", "click", importJaneBatch);
+on("manualDob", "input", () => {
   $("#manualPatientAge").value = calculateAge($("#manualDob").value);
 });
-$("#patientSearch").addEventListener("input", renderPatientSearchResults);
-$("#dob").addEventListener("input", () => {
+on("patientSearch", "input", renderPatientSearchResults);
+on("dob", "input", () => {
   $("#patientAge").value = calculateAge($("#dob").value);
   updateLinks();
 });
 ["patientName", "patientAge", "recentXray", "xrayDate", "xrayLocation", "chiefComplaint", "historyNotes", "contraindications", "familyHistory", "strokeRiskFlags"].forEach((id) => {
-  document.getElementById(id).addEventListener("input", updateLinks);
-  document.getElementById(id).addEventListener("change", updateLinks);
+  on(id, "input", updateLinks);
+  on(id, "change", updateLinks);
 });
 ["reportType", "reportDate", "reportBodyArea", "reportText"].forEach((id) => {
-  document.getElementById(id).addEventListener("input", renderReportList);
-  document.getElementById(id).addEventListener("change", renderReportList);
+  on(id, "input", renderReportList);
+  on(id, "change", renderReportList);
 });
 updateLinks();
 renderSelectedPatient();

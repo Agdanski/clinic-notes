@@ -78,6 +78,29 @@ function currentPatientProfile() {
   return key ? savedProfiles()[key] || null : null;
 }
 
+function updatePatientNavLinks() {
+  const patient = encodeURIComponent($("#patientName")?.value?.trim() || "");
+  const links = {
+    navSoap: "index.html",
+    navConsent: "consent.html",
+    navExam: "exam.html",
+    navReports: "reports.html"
+  };
+  Object.entries(links).forEach(([id, page]) => {
+    const link = document.getElementById(id);
+    if (link) link.href = patient ? `${page}?patient=${patient}` : page;
+  });
+}
+
+function applyProfileToInitial() {
+  const profile = currentPatientProfile();
+  if (!profile) return;
+  if (profile.patientName && !$("#patientName").value) $("#patientName").value = profile.patientName;
+  if (profile.dob && !$("#dob").value) $("#dob").value = profile.dob;
+  updateAge();
+  updatePatientNavLinks();
+}
+
 function writeProfiles(profiles) {
   localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
 }
@@ -467,7 +490,9 @@ function loadRequestedInitialFromUrl() {
   const record = savedInitials().find((item) => patientKey(item?.fields?.patientName) === patient);
   if (record) loadInitialRecord(record);
   else $("#patientName").value = new URLSearchParams(window.location.search).get("patient") || "";
+  applyProfileToInitial();
   applyExamTransferFromProfile();
+  updatePatientNavLinks();
 }
 
 function updateDateParts() {
@@ -496,12 +521,14 @@ function bindFields() {
     field.addEventListener("input", () => {
       if (field.name === "orthoticsLastDate") updateOrthoticsRecheck();
       if (field.name === "dob") updateAge();
+      if (field.name === "patientName") updatePatientNavLinks();
       renderChoices();
       scheduleAutosave();
     });
     field.addEventListener("change", () => {
       if (field.name === "orthoticsLastDate") updateOrthoticsRecheck();
       if (field.name === "dob") updateAge();
+      if (field.name === "patientName") updatePatientNavLinks();
       renderChoices();
       scheduleAutosave();
     });

@@ -38,6 +38,17 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function calculateAge(dobValue) {
+  if (!dobValue) return "";
+  const dob = new Date(`${dobValue}T00:00:00`);
+  if (Number.isNaN(dob.getTime())) return "";
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const birthdayThisYear = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+  if (today < birthdayThisYear) age -= 1;
+  return age >= 0 ? String(age) : "";
+}
+
 function patientKey(name) {
   return String(name || "").trim().toLowerCase();
 }
@@ -466,15 +477,30 @@ function currentProfileForPatient(name) {
   return savedProfiles()[key] || null;
 }
 
+function updatePatientNavLinks() {
+  const patient = encodeURIComponent(document.getElementsByName("patientName")[0]?.value?.trim() || "");
+  const links = {
+    navSoap: "index.html",
+    navInitial: "initial.html",
+    navConsent: "consent.html",
+    navReports: "reports.html"
+  };
+  Object.entries(links).forEach(([id, page]) => {
+    const link = document.getElementById(id);
+    if (link) link.href = patient ? `${page}?patient=${patient}` : page;
+  });
+}
+
 function applyPatientProfileToExam() {
   const profile = currentProfileForPatient(document.getElementsByName("patientName")[0].value);
   if (!profile) return;
-  if (profile.patientAge !== undefined) {
-    document.getElementsByName("patientAge")[0].value = profile.patientAge || "";
+  if (profile.dob || profile.patientAge !== undefined) {
+    document.getElementsByName("patientAge")[0].value = calculateAge(profile.dob) || profile.patientAge || "";
   }
   if (profile.doctor && !document.getElementsByName("doctor")[0].value) {
     document.getElementsByName("doctor")[0].value = profile.doctor;
   }
+  updatePatientNavLinks();
 }
 
 function saveProfile(record) {
@@ -528,6 +554,7 @@ function loadExam(record) {
   state.choices = migrateChoices(record.choices || {});
   applyPatientProfileToExam();
   render();
+  updatePatientNavLinks();
   setStatus("Exam loaded.");
 }
 
@@ -576,6 +603,7 @@ function loadRequestedExam() {
   }
   $("#patientName").value = params.get("patient");
   applyPatientProfileToExam();
+  updatePatientNavLinks();
 }
 
 function setDefaults() {
@@ -585,10 +613,12 @@ function setDefaults() {
 function bindFields() {
   $$("input[name], textarea[name], select[name]").forEach((field) => {
     field.addEventListener("input", () => {
+      if (field.name === "patientName") updatePatientNavLinks();
       render();
       scheduleAutosave();
     });
     field.addEventListener("change", () => {
+      if (field.name === "patientName") updatePatientNavLinks();
       render();
       scheduleAutosave();
     });
@@ -686,4 +716,5 @@ bindActions();
 setDefaults();
 loadRequestedExam();
 render();
+updatePatientNavLinks();
 state.autosaveReady = true;

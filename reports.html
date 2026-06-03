@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diagnostic Reports</title>
+  <link rel="stylesheet" href="app.css?v=20260528-alerts">
+  <link rel="stylesheet" href="initial.css">
+  <link rel="stylesheet" href="dashboard.css">
+  <link rel="stylesheet" href="server.css">
+</head>
+<body>
+  <main class="app-shell dashboard-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="clinic-logo" src="assets/gdanski-chiropractic-logo-balanced.png" alt="Gdanski Chiropractic logo">
+      </div>
+      <div class="page-title">
+        <p class="eyebrow">Patient file</p>
+        <h1>Diagnostic reports</h1>
+      </div>
+      <div class="actions">
+        <a class="button-link" id="navDashboard" href="dashboard.html">Dashboard</a>
+        <a class="button-link" id="navSoap" href="index.html">SOAP</a>
+        <a class="button-link" id="navInitial" href="initial.html">Initial</a>
+        <a class="button-link" id="navConsent" href="consent.html">Consent</a>
+        <a class="button-link" id="navExam" href="exam.html">Exam</a>
+      </div>
+    </header>
+
+    <section class="sheet report-sheet">
+      <section class="dashboard-panel">
+        <div class="section-head">
+          <h2 id="reportPatientName">Patient</h2>
+          <span id="reportPatientMeta"></span>
+        </div>
+        <div class="field-grid three">
+          <label>
+            <span>Report type</span>
+            <select id="reportType">
+              <option>X-ray</option>
+              <option>MRI</option>
+              <option>CT</option>
+              <option>Ultrasound</option>
+              <option>Other imaging</option>
+            </select>
+          </label>
+          <label>
+            <span>Report date</span>
+            <input id="reportDate" type="date">
+          </label>
+          <label>
+            <span>Body area / location</span>
+            <input id="reportBodyArea" placeholder="Cervical spine, lumbar spine, knee, etc.">
+          </label>
+        </div>
+        <label>
+          <span>Upload report</span>
+          <input id="reportFile" type="file" accept="application/pdf,image/*,.txt,text/plain">
+        </label>
+        <div class="dashboard-actions">
+          <button type="button" id="extractReport">Extract report text</button>
+          <button type="button" id="applyReport">Save report to patient</button>
+        </div>
+        <output id="reportStatus" aria-live="polite"></output>
+        <label>
+          <span>Report text / notes</span>
+          <textarea id="reportText" rows="8" placeholder="Extracted report text appears here. Staff can edit or paste report findings before saving."></textarea>
+        </label>
+        <div id="reportList" class="report-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="central-storage.js"></script>
+  <script src="reports.js"></script>
+</body>
+</html>

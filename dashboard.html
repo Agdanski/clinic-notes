@@ -26,7 +26,6 @@
       <section class="sheet dashboard-task find-patient-task">
         <div class="section-head">
           <h2>Find Patient And Open File</h2>
-          <span>Most used</span>
         </div>
         <label class="dashboard-search-label">
           <span>Search by first name, last name, Jane ID, app patient ID, or birth date</span>
@@ -34,9 +33,7 @@
         </label>
         <div id="patientSearchResults" class="patient-search-results"></div>
         <div class="selected-patient-row">
-          <div id="selectedPatientCard" class="selected-patient-card">
-            <p>Search for a patient, select the correct result, then open the patient file.</p>
-          </div>
+          <div id="selectedPatientCard" class="selected-patient-card" hidden></div>
           <a class="button-link open-file-button is-disabled" id="fileSoap" href="index.html" aria-disabled="true">Open Patient File</a>
         </div>
       </section>
@@ -109,146 +106,6 @@
       </section>
     </section>
 
-    <section class="sheet dashboard-grid">
-      <section class="dashboard-panel">
-        <div class="section-head">
-          <h2>Upload New Patient Intake</h2>
-          <span>Adult or child</span>
-        </div>
-        <label>
-          <span>Form type</span>
-          <select id="formType">
-            <option value="janeAdult">Jane adult new patient</option>
-            <option value="janeTeen">Jane teen new patient</option>
-            <option value="janeChild">Jane child new patient</option>
-            <option value="janeConsent">Jane consent</option>
-            <option value="legacyInitial">Legacy scanned patient history</option>
-            <option value="adult">Scanned/paper adult intake</option>
-            <option value="child">Scanned/paper child intake</option>
-          </select>
-        </label>
-        <label>
-          <span>Scanned form</span>
-          <input id="formFile" type="file" accept="application/pdf,image/*">
-        </label>
-        <div class="dashboard-actions">
-          <button type="button" id="extractText">Extract/OCR text</button>
-          <button type="button" id="parseText">Map to fields</button>
-        </div>
-        <output id="statusLine" aria-live="polite"></output>
-        <label>
-          <span>Extracted text</span>
-          <textarea id="rawText" rows="16" placeholder="OCR or extracted text appears here. Staff can edit before mapping."></textarea>
-        </label>
-      </section>
-
-      <section class="dashboard-panel">
-        <div class="section-head">
-          <h2>Review Import</h2>
-          <span>Confirm before applying</span>
-        </div>
-        <div class="field-grid two">
-          <label>
-            <span>Patient name</span>
-            <input id="patientName">
-          </label>
-          <label>
-            <span>Date of birth</span>
-            <input id="dob" type="date">
-          </label>
-          <label>
-            <span>Age</span>
-            <input id="patientAge" inputmode="numeric">
-          </label>
-          <label>
-            <span>Spinal x-rays</span>
-            <select id="recentXray">
-              <option value=""></option>
-              <option value="Y">Y</option>
-              <option value="N">N</option>
-            </select>
-          </label>
-          <label>
-            <span>X-ray date</span>
-            <input id="xrayDate" type="date">
-          </label>
-          <label>
-            <span>X-ray location/body area</span>
-            <input id="xrayLocation">
-          </label>
-          <label class="wide">
-            <span>Chief complaint</span>
-            <textarea id="chiefComplaint" rows="5"></textarea>
-          </label>
-          <label class="wide">
-            <span>History</span>
-            <textarea id="historyNotes" rows="7"></textarea>
-          </label>
-          <label class="wide">
-            <span>Contraindications / cautions</span>
-            <textarea id="contraindications" rows="5"></textarea>
-          </label>
-          <label>
-            <span>Family history</span>
-            <input id="familyHistory">
-          </label>
-          <label>
-            <span>Stroke risk review flags</span>
-            <input id="strokeRiskFlags">
-          </label>
-        </div>
-        <div class="dashboard-actions">
-          <button type="button" id="applyImport">Apply to patient forms</button>
-          <a class="button-link" id="openInitial" href="initial.html">Open initial</a>
-          <a class="button-link" id="openConsent" href="consent.html">Open consent</a>
-          <a class="button-link" id="openExam" href="exam.html">Open exam</a>
-          <a class="button-link" id="openSoap" href="index.html">Open SOAP</a>
-        </div>
-      </section>
-    </section>
-
-    <section class="sheet report-sheet">
-      <section class="dashboard-panel">
-        <div class="section-head">
-          <h2>Diagnostic Reports</h2>
-          <span>X-ray, MRI, CT, ultrasound</span>
-        </div>
-        <div class="field-grid three">
-          <label>
-            <span>Report type</span>
-            <select id="reportType">
-              <option>X-ray</option>
-              <option>MRI</option>
-              <option>CT</option>
-              <option>Ultrasound</option>
-              <option>Other imaging</option>
-            </select>
-          </label>
-          <label>
-            <span>Report date</span>
-            <input id="reportDate" type="date">
-          </label>
-          <label>
-            <span>Body area / location</span>
-            <input id="reportBodyArea" placeholder="Cervical spine, lumbar spine, knee, etc.">
-          </label>
-        </div>
-        <label>
-          <span>Upload report</span>
-          <input id="reportFile" type="file" accept="application/pdf,image/*,.txt,text/plain">
-        </label>
-        <div class="dashboard-actions">
-          <button type="button" id="extractReport">Extract report text</button>
-          <button type="button" id="applyReport">Save report to patient</button>
-        </div>
-        <output id="reportStatus" aria-live="polite"></output>
-        <label>
-          <span>Report text / notes</span>
-          <textarea id="reportText" rows="8" placeholder="Extracted report text appears here. Staff can edit or paste report findings before saving."></textarea>
-        </label>
-        <div id="reportList" class="report-list"></div>
-      </section>
-    </section>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>

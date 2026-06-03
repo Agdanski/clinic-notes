@@ -22,6 +22,7 @@
         <a class="button-link patient-nav-link" id="navInitial" href="initial.html">Initial</a>
         <a class="button-link patient-nav-link" id="navConsent" href="consent.html">Consent</a>
         <a class="button-link patient-nav-link" id="navExam" href="exam.html">Exam</a>
+        <a class="button-link patient-nav-link" id="navReports" href="reports.html">Diagnostic Reports</a>
         <button type="button" id="historyNote">History</button>
         <button type="button" id="saveNote">Save</button>
         <button type="button" id="exportNote">Export</button>
@@ -63,10 +64,6 @@
           <input id="visitDay" readonly>
         </label>
         <label>
-          <span>Time</span>
-          <input id="visitTime" type="time">
-        </label>
-        <label>
           <span>Doctor of record</span>
           <select id="doctor">
             <option value=""></option>
@@ -75,14 +72,15 @@
           </select>
         </label>
         <label>
-          <span>#</span>
+          <span>Visit #</span>
           <input id="visitNumber" type="number" min="2" step="1" value="2">
         </label>
         <strong class="reexam-flag" id="reexamFlag">Re-exam visit</strong>
         <strong class="next-reexam-flag" id="nextReexamFlag"></strong>
       </div>
+      <input id="visitTime" type="hidden" value="">
       <div class="manual-visit-warning" id="manualVisitWarning" hidden>
-        Visit number required. Check the existing paper file and enter the current visit number before saving this SOAP note.
+        Visit number and re-exam-at visit number required. Check the existing paper file before saving this SOAP note.
       </div>
 
       <div class="patient-alerts" id="patientAlerts" hidden></div>

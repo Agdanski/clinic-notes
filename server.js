@@ -24,8 +24,8 @@ const CLIENT_FILES = new Set([
   "initial.html",
   "exam.html",
   "consent.html",
+  "reports.html",
   "dashboard.html",
-  "demo.html",
   "admin.html",
   "app.css",
   "initial.css",
@@ -37,8 +37,8 @@ const CLIENT_FILES = new Set([
   "initial.js",
   "exam.js",
   "consent.js",
+  "reports.js",
   "dashboard.js",
-  "demo.js",
   "central-storage.js",
   "admin.js"
 ]);

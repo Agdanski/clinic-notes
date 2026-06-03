@@ -159,7 +159,7 @@ textarea:focus {
 }
 
 .visit-row {
-  grid-template-columns: minmax(120px, 0.7fr) minmax(80px, 0.45fr) minmax(105px, 0.55fr) minmax(170px, 0.9fr) minmax(70px, 0.38fr) minmax(130px, 0.6fr);
+  grid-template-columns: minmax(120px, 0.7fr) minmax(80px, 0.45fr) minmax(170px, 0.9fr) minmax(90px, 0.45fr) minmax(130px, 0.6fr) minmax(150px, 0.7fr);
 }
 
 label span,

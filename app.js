@@ -502,6 +502,7 @@ function updateDateParts() {
 function updateReexamFlag() {
   const visit = Number($("#visitNumber").value || 0);
   const reexamAt = Number($("#reExamAt").value || 0);
+  $("#reExamAt").min = visit ? String(visit) : "2";
   const isReexam = visit > 0 && visit === reexamAt;
   $("#visitRow").classList.toggle("is-reexam", isReexam);
   $("#reexamFlag").textContent = isReexam ? `RE-EXAM VISIT #${visit}` : "Re-exam visit";
@@ -509,7 +510,8 @@ function updateReexamFlag() {
 }
 
 function manualVisitNumberRequired() {
-  return Boolean(currentPatientProfile()?.needsManualVisitNumber && !String($("#visitNumber").value || "").trim());
+  if (!currentPatientProfile()?.needsManualVisitNumber) return false;
+  return !String($("#visitNumber").value || "").trim() || !String($("#reExamAt").value || "").trim();
 }
 
 function renderManualVisitWarning() {
@@ -525,10 +527,10 @@ function patientNavUrl(page) {
 
 function updatePatientNavLinks() {
   const links = [
-    ["navDashboard", "dashboard.html"],
     ["navInitial", "initial.html"],
     ["navConsent", "consent.html"],
-    ["navExam", "exam.html"]
+    ["navExam", "exam.html"],
+    ["navReports", "reports.html"]
   ];
   links.forEach(([id, page]) => {
     const link = document.getElementById(id);
@@ -696,7 +698,6 @@ function buildSummary() {
   const doctor = $("#doctor").value;
   const visitNumber = $("#visitNumber").value;
   const reexamAt = $("#reExamAt").value;
-  const time = $("#visitTime").value;
   const freeNote = $("#freeNote").value.trim();
   const dcNote = $("#dcNote").value.trim();
   const importantNotes = $("#importantNotes").value.trim();
@@ -708,7 +709,6 @@ function buildSummary() {
     `Patient ID: ${filled(patientId)}`,
     `Age: ${filled(patientAge)}`,
     `Date: ${displayVisitDate()}`,
-    `Time: ${filled(time)}`,
     `Doctor of record: ${filled(doctor)}`,
     `Visit number: ${filled(visitNumber)}`,
     `Re-exam at visit: ${filled(reexamAt)}`,
@@ -938,6 +938,7 @@ function persistDraft(statusMessage) {
 function scheduleAutosave() {
   if (!state.autosaveReady || !noteHasMeaningfulContent()) return;
   if (manualVisitNumberRequired()) return;
+  if (!reexamAtIsValid()) return;
   window.clearTimeout(autosaveTimer);
   autosaveTimer = window.setTimeout(() => {
     persistDraft("Autosaved.");
@@ -975,6 +976,7 @@ function loadRequestedNoteFromUrl() {
   $("#patientName").value = params.get("patient");
   if (currentPatientProfile()?.needsManualVisitNumber) {
     $("#visitNumber").value = "";
+    $("#reExamAt").value = "";
   }
   renderAll();
 }
@@ -1126,18 +1128,33 @@ function validateDcNote() {
 function validateVisitNumber() {
   if (!manualVisitNumberRequired()) return true;
   $("#visitNumber").focus();
-  setStatus("Visit number required from the paper file.");
+  setStatus("Visit number and re-exam-at visit required from the paper file.");
   return false;
+}
+
+function validateReexamAt() {
+  if (reexamAtIsValid()) return true;
+  $("#reExamAt").focus();
+  setStatus("Re-exam at visit cannot be less than the current visit number.");
+  return false;
+}
+
+function reexamAtIsValid() {
+  const visit = Number($("#visitNumber").value || 0);
+  const reexamAt = Number($("#reExamAt").value || 0);
+  return !visit || !reexamAt || reexamAt >= visit;
 }
 
 function saveDraft() {
   if (!validateVisitNumber()) return;
+  if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
   persistDraft(window.ClinicServer ? "Draft saved to the clinic server." : "Draft saved on this device.");
 }
 
 function exportNote() {
   if (!validateVisitNumber()) return;
+  if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
   const draft = noteData();
   const text = buildSummary();
@@ -1153,6 +1170,7 @@ function exportNote() {
 
 function printNote() {
   if (!validateVisitNumber()) return;
+  if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
   window.print();
 }

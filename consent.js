@@ -69,6 +69,20 @@ function currentProfile() {
   return key ? savedProfiles()[key] || null : null;
 }
 
+function updatePatientNavLinks() {
+  const patient = encodeURIComponent($("#patientName")?.value?.trim() || "");
+  const links = {
+    navSoap: "index.html",
+    navInitial: "initial.html",
+    navExam: "exam.html",
+    navReports: "reports.html"
+  };
+  Object.entries(links).forEach(([id, page]) => {
+    const link = document.getElementById(id);
+    if (link) link.href = patient ? `${page}?patient=${patient}` : page;
+  });
+}
+
 function setStatus(message) {
   $("#statusLine").textContent = message;
   window.clearTimeout(setStatus.timer);
@@ -259,6 +273,7 @@ function applyProfile(profile) {
     $("#chiropractorName").value = profile.doctor.replace("Dr. Allan", "Dr. Allan Gdanski").replace("Dr. Daniel", "Dr. Daniel Delellis");
   }
   updateAge();
+  updatePatientNavLinks();
 }
 
 function saveProfile(record) {
@@ -323,6 +338,7 @@ function loadConsent(record) {
   state.doctorSignatureDirty = Boolean(record.doctorSignature);
   updateAge();
   renderSummary();
+  updatePatientNavLinks();
   setStatus("Consent loaded.");
 }
 
@@ -337,6 +353,7 @@ function loadRequestedConsent() {
   }
   $("#patientName").value = params.get("patient") || "";
   applyProfile(currentProfile());
+  updatePatientNavLinks();
 }
 
 function exportConsent() {
@@ -367,11 +384,13 @@ function bindFields() {
     const field = document.getElementById(id);
     field.addEventListener("input", () => {
       if (id === "dob") updateAge();
+      if (id === "patientName") updatePatientNavLinks();
       renderSummary();
       scheduleAutosave();
     });
     field.addEventListener("change", () => {
       if (id === "dob") updateAge();
+      if (id === "patientName") updatePatientNavLinks();
       renderSummary();
       scheduleAutosave();
     });
@@ -400,6 +419,7 @@ function init() {
   loadRequestedConsent();
   if (!$("#patientName").value) applyProfile(currentProfile());
   updateAge();
+  updatePatientNavLinks();
   renderSummary();
   state.autosaveReady = true;
 }
