@@ -191,6 +191,25 @@
     </form>
   </dialog>
 
+  <dialog id="reexamDialog" class="reexam-dialog">
+    <form class="reexam-shell">
+      <div class="history-head">
+        <h2>Re-exam retest</h2>
+        <button type="button" id="reexamClose">Close</button>
+      </div>
+      <p class="reexam-context">Original positive exam findings to re-test:</p>
+      <pre id="reexamOriginalFindings"></pre>
+      <label>
+        <span>Doctor re-test findings</span>
+        <textarea id="reexamReviewNote" rows="5" placeholder="Briefly document the re-test findings"></textarea>
+      </label>
+      <div class="reexam-actions">
+        <button type="button" id="reexamSave">Save</button>
+        <button type="button" id="reexamDone">Done</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="central-storage.js"></script>
   <script src="app.js"></script>
 </body>

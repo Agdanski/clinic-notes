@@ -607,9 +607,43 @@ dialog {
   max-height: min(82vh, 760px);
 }
 
+.reexam-dialog {
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(82vh, 760px);
+}
+
 .history-shell {
   display: grid;
   gap: 12px;
+}
+
+.reexam-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.reexam-context {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+#reexamOriginalFindings {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+  white-space: pre-wrap;
+}
+
+.reexam-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .history-head,

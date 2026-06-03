@@ -31,6 +31,8 @@ const state = {
   single: defaultSingle(),
   visitLevels: new Set(),
   levelFindings: {},
+  reexamReview: { notes: "", completed: false, updatedAt: "" },
+  reexamPromptKey: "",
   currentDraftId: null,
   profileSubjectiveDefaultsApplied: false,
   autosaveReady: false
@@ -484,6 +486,7 @@ function renderAll() {
   $$(".mark[data-line]").forEach(renderButton);
   updateDateParts();
   updateReexamFlag();
+  renderReexamReview();
   renderManualVisitWarning();
   updatePatientNavLinks();
   renderPatientAlerts();
@@ -502,13 +505,27 @@ function updateDateParts() {
 }
 
 function updateReexamFlag() {
-  const visit = Number($("#visitNumber").value || 0);
-  const reexamAt = Number($("#reExamAt").value || 0);
+  const visit = currentVisitNumber();
+  const reexamAt = currentReexamAt();
   $("#reExamAt").min = visit ? String(visit) : "2";
-  const isReexam = visit > 0 && visit === reexamAt;
+  const isReexam = currentVisitIsReexam();
   $("#visitRow").classList.toggle("is-reexam", isReexam);
   $("#reexamFlag").textContent = isReexam ? `RE-EXAM VISIT #${visit}` : "Re-exam visit";
   $("#nextReexamFlag").textContent = isReexam ? `Next re-exam: visit ${visit + 12}` : "";
+}
+
+function currentVisitNumber() {
+  return Number($("#visitNumber").value || 0);
+}
+
+function currentReexamAt() {
+  return Number($("#reExamAt").value || 0);
+}
+
+function currentVisitIsReexam() {
+  const visit = currentVisitNumber();
+  const reexamAt = currentReexamAt();
+  return visit > 0 && visit === reexamAt;
 }
 
 function manualVisitNumberRequired() {
@@ -557,6 +574,60 @@ function selectedMarks(line) {
     }
   });
   return parts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function reexamOriginalFindings() {
+  const profile = currentPatientProfile() || {};
+  return [
+    ["Myopathology", profile.examMuscleFindings],
+    ["Orthopaedic tests", profile.examOrthoFindings],
+    ["Neurological / DTR / motor / sensation", profile.examNeuroFindings]
+  ].map(([label, value]) => {
+    const text = String(value || "").trim();
+    return text ? `${label}\n${text}` : "";
+  }).filter(Boolean).join("\n\n");
+}
+
+function reexamReviewRequired() {
+  return currentVisitIsReexam() && Boolean(reexamOriginalFindings());
+}
+
+function reexamReviewPromptKey() {
+  return [currentPatientName(), $("#visitNumber").value, $("#reExamAt").value].join("|");
+}
+
+function renderReexamReview() {
+  const dialog = $("#reexamDialog");
+  if (!dialog) return;
+  const findings = reexamOriginalFindings();
+  $("#reexamOriginalFindings").textContent = findings || "No positive exam findings documented from the Exam page.";
+  if ($("#reexamReviewNote") !== document.activeElement) $("#reexamReviewNote").value = state.reexamReview.notes || "";
+  const shouldPrompt = reexamReviewRequired() && !state.reexamReview.completed;
+  if (!shouldPrompt) return;
+  const key = reexamReviewPromptKey();
+  if (state.reexamPromptKey === key || dialog.open) return;
+  state.reexamPromptKey = key;
+  window.setTimeout(() => {
+    if (!dialog.open && reexamReviewRequired() && !state.reexamReview.completed) dialog.showModal();
+  }, 0);
+}
+
+function saveReexamReview(closeDialog = true) {
+  const note = $("#reexamReviewNote").value.trim();
+  if (reexamReviewRequired() && !note) {
+    $("#reexamReviewNote").focus();
+    setStatus("Document the re-exam re-test findings before finishing this re-exam.");
+    return false;
+  }
+  state.reexamReview = {
+    notes: note,
+    completed: Boolean(note) || !reexamReviewRequired(),
+    updatedAt: new Date().toISOString()
+  };
+  if (closeDialog) $("#reexamDialog").close();
+  renderAll();
+  setStatus("Re-exam re-test saved.");
+  return true;
 }
 
 function renderOrthos() {
@@ -727,6 +798,11 @@ function buildSummary() {
     state.single.treatmentStatus === "DC" ? optionalLine("Discontinuing care doctor note", dcNote) : "",
     optionalLine("Free note", freeNote)
   ].filter(Boolean);
+  const reexamLines = reexamReviewRequired() || state.reexamReview.notes ? [
+    "Re-exam Re-test",
+    `Original positive findings: ${filled(reexamOriginalFindings(), "No positive exam findings documented from the Exam page.")}`,
+    `Doctor re-test findings: ${filled(state.reexamReview.notes)}`
+  ] : [];
   return [
     "Gdanski Chiropractic Clinic",
     "Repeat Visit SOAP Note",
@@ -747,6 +823,7 @@ function buildSummary() {
     "",
     "SOAP Note",
     ...soapLines,
+    ...(reexamLines.length ? ["", ...reexamLines] : []),
     "",
     "Assessment Legend",
     "* initial-visit pattern",
@@ -793,6 +870,7 @@ function noteData() {
     single: state.single,
     visitLevels: Array.from(state.visitLevels),
     levelFindings: state.levelFindings,
+    reexamReview: state.reexamReview,
     ...parts,
     summary: buildSummary(),
     updatedAt: new Date().toISOString()
@@ -819,6 +897,8 @@ function loadNote(note) {
   state.single = { ...defaultSingle(), ...(note.single || {}) };
   state.visitLevels = new Set(note.visitLevels || []);
   state.levelFindings = note.levelFindings || {};
+  state.reexamReview = note.reexamReview || { notes: "", completed: false, updatedAt: "" };
+  state.reexamPromptKey = "";
   state.currentDraftId = note.id || `draft-${Date.now()}`;
   state.profileSubjectiveDefaultsApplied = true;
   renderAll();
@@ -951,6 +1031,8 @@ function noteHasMeaningfulContent() {
     state.visitLevels.size ||
     Object.keys(state.levelFindings).length ||
     state.orthosOpen ||
+    state.reexamReview.notes ||
+    state.reexamReview.completed ||
     state.single.subjectiveChange ||
     state.single.treatmentStatus === "DC" ||
     state.single.acuity !== patientDefaults.acuity ||
@@ -1173,6 +1255,15 @@ function validateReexamAt() {
   return false;
 }
 
+function validateReexamReview() {
+  if (!reexamReviewRequired()) return true;
+  if (state.reexamReview.completed && String(state.reexamReview.notes || "").trim()) return true;
+  if (!$("#reexamDialog").open) $("#reexamDialog").showModal();
+  $("#reexamReviewNote").focus();
+  setStatus("Complete the re-exam re-test before saving this SOAP note.");
+  return false;
+}
+
 function reexamAtIsValid() {
   const visit = Number($("#visitNumber").value || 0);
   const reexamAt = Number($("#reExamAt").value || 0);
@@ -1183,6 +1274,7 @@ function saveDraft() {
   if (!validateVisitNumber()) return;
   if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
+  if (!validateReexamReview()) return;
   if (!validateDoctor()) return;
   persistDraft(window.ClinicServer ? "Draft saved to the clinic server." : "Draft saved on this device.");
 }
@@ -1199,12 +1291,14 @@ function canLeavePage() {
   if (!validateVisitNumber()) return false;
   if (!validateReexamAt()) return false;
   if (!validateDcNote()) return false;
+  if (!validateReexamReview()) return false;
   return true;
 }
 
 function autosaveBeforeLeave() {
   if (!noteHasMeaningfulContent()) return;
   if (manualVisitNumberRequired() || !reexamAtIsValid() || !$("#doctor").value.trim()) return;
+  if (reexamReviewRequired() && !state.reexamReview.completed) return;
   persistDraft("");
 }
 
@@ -1212,6 +1306,7 @@ function exportNote() {
   if (!validateVisitNumber()) return;
   if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
+  if (!validateReexamReview()) return;
   if (!validateDoctor()) return;
   const draft = noteData();
   const text = buildSummary();
@@ -1229,6 +1324,7 @@ function printNote() {
   if (!validateVisitNumber()) return;
   if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
+  if (!validateReexamReview()) return;
   if (!validateDoctor()) return;
   window.print();
 }
@@ -1258,6 +1354,8 @@ function resetNote() {
   state.selected["S:CK"] = true;
   state.visitLevels = new Set();
   state.levelFindings = {};
+  state.reexamReview = { notes: "", completed: false, updatedAt: "" };
+  state.reexamPromptKey = "";
   state.currentDraftId = null;
   state.profileSubjectiveDefaultsApplied = false;
   renderAll();
@@ -1280,6 +1378,15 @@ function bindEvents() {
   $("#historyDialog form").addEventListener("submit", (event) => event.preventDefault());
   $("#historySearch").addEventListener("input", renderHistory);
   $("#historyDate").addEventListener("input", renderHistory);
+  $("#reexamClose").addEventListener("click", () => $("#reexamDialog").close());
+  $("#reexamDialog form").addEventListener("submit", (event) => event.preventDefault());
+  $("#reexamReviewNote").addEventListener("input", () => {
+    state.reexamReview.notes = $("#reexamReviewNote").value;
+    state.reexamReview.completed = false;
+    scheduleAutosave();
+  });
+  $("#reexamSave").addEventListener("click", () => saveReexamReview(true));
+  $("#reexamDone").addEventListener("click", () => saveReexamReview(true));
   $("#copySummary").addEventListener("click", async () => {
     await navigator.clipboard.writeText($("#summaryText").textContent);
     setStatus("Summary copied.");
