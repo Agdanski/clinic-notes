@@ -35,6 +35,8 @@ const state = {
   levelFindings: {},
   reexamReview: { notes: "", results: {}, completed: false, updatedAt: "" },
   reexamPromptKey: "",
+  orthoticsPromptKey: "",
+  orthoticsReminderDone: false,
   currentDraftId: null,
   profileSubjectiveDefaultsApplied: false,
   autosaveReady: false
@@ -111,7 +113,7 @@ const assessmentItems = [
   ["SI-L", "level"], ["SI-R", "level"], ["Soft tissue only"], ["Well"], ["Tight"]
 ];
 const planItems = [
-  ["PT"], ["NK"], ["DT"], ["Lfsty"], ["Nutr"],
+  ["Physio app"], ["PT"], ["NK"], ["DT"], ["Lfsty"], ["Nutr"],
   ["A", "acuity", "A"], ["SA", "acuity", "SA"], ["Chr", "acuity", "Chr"],
   ["TTC", "treatmentStatus", "TTC"], ["Freq", "schedulePicker"]
 ];
@@ -128,7 +130,7 @@ const orthoItems = [
   ["Ext shoulder rotation", "orthoSided"], ["Figure 4", "orthoSided"], ["Jacksons", "orthoSided"],
   ["Spurlings", "orthoSided"]
 ];
-const profileAlertLabels = new Set(["NO NECK", "NOT NECK", "SOFT TISSUE ONLY", "VERY GENTLE"]);
+const profileAlertLabels = new Set(["NO NECK", "NOT NECK", "NOT NECK - MOB ONLY", "SOFT TISSUE ONLY", "VERY GENTLE"]);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -549,6 +551,7 @@ function renderAll() {
   renderManualVisitWarning();
   updatePatientNavLinks();
   renderPatientAlerts();
+  renderOrthoticsReminder();
   renderDcNote();
   renderOrthos();
   renderPriorReference();
@@ -907,6 +910,44 @@ function previousDraftForCurrentVisit() {
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
 }
 
+function torqueSideFromProfile(profile) {
+  if (profile?.examTorque === "R" || profile?.examTorque === "L") return profile.examTorque;
+  const subluxations = Array.isArray(profile?.subluxations) ? profile.subluxations : [];
+  if (subluxations.includes("Torque R")) return "R";
+  if (subluxations.includes("Torque L")) return "L";
+  return "";
+}
+
+function draftHasTorque(draft, side) {
+  const label = `Torque ${side}`;
+  return Boolean(draft?.selected?.[makeKey("OD", label)] || String(draft?.oDetailText || "").split(",").map((item) => item.trim()).includes(label));
+}
+
+function torqueTally() {
+  const profile = currentPatientProfile();
+  const currentVisit = Number($("#visitNumber").value || 0);
+  const counts = { R: 0, L: 0 };
+  const profileTorque = torqueSideFromProfile(profile);
+  if (profileTorque) counts[profileTorque] += 1;
+  savedDrafts()
+    .filter((draft) => samePatientOrBlank(draft))
+    .filter((draft) => {
+      const visit = Number(draft.visitNumber || 0);
+      return !currentVisit || !visit || visit < currentVisit;
+    })
+    .forEach((draft) => {
+      if (draftHasTorque(draft, "R")) counts.R += 1;
+      if (draftHasTorque(draft, "L")) counts.L += 1;
+    });
+  return counts;
+}
+
+function torqueTallyText() {
+  const counts = torqueTally();
+  if (!counts.R && !counts.L) return "";
+  return `torque R ${counts.R}x L ${counts.L}x`;
+}
+
 function latestCarryForwardDraft() {
   return savedDrafts()
     .filter((draft) => samePatientOrBlank(draft) && draft.importantNotes)
@@ -932,12 +973,14 @@ function priorLine(label, value) {
 function renderPriorReference() {
   const prior = previousDraftForCurrentVisit();
   const target = $("#priorReference");
+  const torqueLine = torqueTallyText();
   if (!prior) {
-    target.textContent = "No previous visit saved.";
+    target.textContent = torqueLine || "No previous visit saved.";
     return;
   }
   target.textContent = [
     `Visit #${prior.visitNumber || ""}`,
+    torqueLine,
     priorLine("S", prior.sText),
     priorLine("O", prior.oText),
     priorLine("O detail", prior.oDetailText),
@@ -1003,6 +1046,36 @@ function visitIsoDate() {
   const mm = String(parsed.getMonth() + 1).padStart(2, "0");
   const dd = String(parsed.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function addYearsToIso(dateValue, years) {
+  if (!dateValue) return "";
+  const date = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setFullYear(date.getFullYear() + years);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function orthoticsDueDate(profile) {
+  return profile?.orthoticsRecheckDate || addYearsToIso(profile?.orthoticsLastDate, 2);
+}
+
+function renderOrthoticsReminder() {
+  const dialog = $("#orthoticsDialog");
+  if (!dialog || dialog.open || state.orthoticsReminderDone) return;
+  const profile = currentPatientProfile();
+  const dueDate = orthoticsDueDate(profile);
+  if (!dueDate) return;
+  const visitDate = visitIsoDate() || new Date().toISOString().slice(0, 10);
+  if (visitDate < dueDate) return;
+  const key = `${currentPatientName()}|${$("#visitNumber").value}|${dueDate}`;
+  if (state.orthoticsPromptKey === key) return;
+  state.orthoticsPromptKey = key;
+  $("#orthoticsMessage").textContent = `Orthotics re-check is due. Due date: ${dueDate}.`;
+  dialog.showModal();
 }
 
 function priorReferenceText() {
@@ -1116,6 +1189,7 @@ function noteData() {
     visitLevels: Array.from(state.visitLevels),
     levelFindings: state.levelFindings,
     reexamReview: state.reexamReview,
+    orthoticsReminderDone: state.orthoticsReminderDone,
     ...parts,
     summary: buildSummary(),
     updatedAt: new Date().toISOString()
@@ -1144,6 +1218,8 @@ function loadNote(note) {
   state.levelFindings = note.levelFindings || {};
   state.reexamReview = { notes: "", results: {}, completed: false, updatedAt: "", ...(note.reexamReview || {}) };
   state.reexamPromptKey = "";
+  state.orthoticsPromptKey = "";
+  state.orthoticsReminderDone = Boolean(note.orthoticsReminderDone);
   state.currentDraftId = note.id || `draft-${Date.now()}`;
   state.profileSubjectiveDefaultsApplied = true;
   renderAll();
@@ -1193,13 +1269,16 @@ function applyPatientProfile() {
   if (Array.isArray(profile.subluxations)) {
     patientDefaults.initialLevels = profile.subluxations;
   }
-  if (profile.neckAdjustment === "N") state.profileAlerts.push("not neck");
-  if (profile.softTissueOnly === "Yes") state.profileAlerts.push("soft tissue only");
-  if (profile.intensity === "Very gentle") state.profileAlerts.push("very gentle");
+  if (profile.neckAdjustment === "N") {
+    state.profileAlerts.push(profile.neckMob === "Yes" ? "not neck - mob only" : "not neck");
+  }
+  if (profile.softTissueOnly === "Yes") {
+    state.selected[makeKey("A", "Soft tissue only")] = true;
+  }
   applyProfileSubjectiveDefaults(profile);
-  const profileImportantNotes = filterProfileAlertNotes(profile.importantNotes || "");
-  if (profileImportantNotes && !importantNotes.value.trim()) {
-    importantNotes.value = profileImportantNotes;
+  const profileImportantNotes = profileDefaultImportantNotes(profile);
+  if (profileImportantNotes) {
+    importantNotes.value = mergeImportantNotes(importantNotes.value, profileImportantNotes);
   }
 }
 
@@ -1209,6 +1288,50 @@ function filterProfileAlertNotes(value) {
     .map((line) => line.trim())
     .filter((line) => line && !profileAlertLabels.has(line.toUpperCase()))
     .join("\n");
+}
+
+function noteLines(value) {
+  return String(value || "")
+    .split(/\r?\n|;/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function uniqueNoteLines(lines) {
+  const seen = new Set();
+  return lines.filter((line) => {
+    const key = line.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isDefaultImportantNoteLine(line) {
+  return /^ltd click\b/i.test(line) ||
+    /^(v\.gen|gen|heavy|ST only)$/i.test(line) ||
+    /^[RLB] fig 4\+$/i.test(line);
+}
+
+function fig4ImportantNotes(profile) {
+  const findings = Array.isArray(profile?.examFig4Findings) ? profile.examFig4Findings : [];
+  if (findings.length) return findings;
+  const latestExam = currentPatientExamRecord();
+  return Array.isArray(latestExam?.examFig4Findings) ? latestExam.examFig4Findings : [];
+}
+
+function profileDefaultImportantNotes(profile) {
+  return uniqueNoteLines([
+    ...noteLines(filterProfileAlertNotes(profile?.importantNotes || "")),
+    ...fig4ImportantNotes(profile)
+  ]).join("\n");
+}
+
+function mergeImportantNotes(existing, defaults) {
+  return uniqueNoteLines([
+    ...noteLines(filterProfileAlertNotes(existing || "")).filter((line) => !isDefaultImportantNoteLine(line)),
+    ...noteLines(defaults)
+  ]).join("\n");
 }
 
 function applyProfileSubjectiveDefaults(profile) {
@@ -1604,6 +1727,8 @@ function resetNote() {
   state.levelFindings = {};
   state.reexamReview = { notes: "", results: {}, completed: false, updatedAt: "" };
   state.reexamPromptKey = "";
+  state.orthoticsPromptKey = "";
+  state.orthoticsReminderDone = false;
   state.currentDraftId = null;
   state.profileSubjectiveDefaultsApplied = false;
   renderAll();
@@ -1635,6 +1760,13 @@ function bindEvents() {
   });
   $("#reexamSave").addEventListener("click", () => saveReexamReview(true));
   $("#reexamDone").addEventListener("click", () => saveReexamReview(true));
+  $("#orthoticsClose").addEventListener("click", () => $("#orthoticsDialog").close());
+  $("#orthoticsDialog form").addEventListener("submit", (event) => event.preventDefault());
+  $("#orthoticsDone").addEventListener("click", () => {
+    state.orthoticsReminderDone = true;
+    $("#orthoticsDialog").close();
+    scheduleAutosave();
+  });
   $("#copySummary").addEventListener("click", async () => {
     await navigator.clipboard.writeText($("#summaryText").textContent);
     setStatus("Summary copied.");

@@ -28,7 +28,8 @@
   margin: 0 0 10px;
 }
 
-.role-legend span {
+.role-legend span,
+.role-filter {
   display: inline-flex;
   min-height: 32px;
   align-items: center;
@@ -37,6 +38,11 @@
   border-radius: 7px;
   font-size: 0.82rem;
   font-weight: 900;
+}
+
+.role-filter.is-selected {
+  outline: 2px solid #172026;
+  outline-offset: 1px;
 }
 
 .doctor-key,
@@ -49,11 +55,6 @@
   background: #f7f4ec;
 }
 
-.exam-key,
-.exam-section {
-  background: #eef2f8;
-}
-
 .doctor-key,
 .doctor-section {
   border-color: #8cc7bb;
@@ -64,15 +65,15 @@
   border-color: #d2c49c;
 }
 
-.exam-key,
-.exam-section {
-  border-color: #aab9d4;
-}
-
 .initial-band,
 .initial-section {
   border-top: 1px solid var(--line);
   padding-top: 10px;
+}
+
+.initial-sheet[data-role-view="doctor"] .staff-section:not(.patient-band),
+.initial-sheet[data-role-view="staff"] .doctor-section {
+  display: none;
 }
 
 .initial-section,

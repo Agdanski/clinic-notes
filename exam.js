@@ -185,6 +185,7 @@ function mountPosture() {
 function mountFunctionalChecks() {
   const target = $("#functionalGrid");
   functionalItems.forEach((item) => addRow(target, item, makeChoiceGroup(`functional:${item}`, ["L", "N", "R"])));
+  addRow(target, "Torque", makeChoiceGroup("functional:Torque", ["R", "L"]));
 }
 
 function mountLevels() {
@@ -373,6 +374,20 @@ function cranialFindings() {
 
 function compressionFindings() {
   return abnormalEntries("compression:").filter((line) => line.includes("+") || line.includes("AbN"));
+}
+
+function examTorque() {
+  return choiceValue("functional:Torque");
+}
+
+function examFig4Findings() {
+  const values = choiceArray("ortho:Figure 4");
+  const hasLeft = values.includes("L +") || values.includes("Both +");
+  const hasRight = values.includes("R +") || values.includes("Both +");
+  if (hasLeft && hasRight) return ["B fig 4+"];
+  if (hasLeft) return ["L fig 4+"];
+  if (hasRight) return ["R fig 4+"];
+  return [];
 }
 
 function postureLevelText(kind, value) {
@@ -581,6 +596,8 @@ function noteData() {
     muscleFindings: muscleFindings().join("; "),
     orthoFindings: orthoFindings().join("; "),
     neuroFindings: neuroFindings().join("; "),
+    examTorque: examTorque(),
+    examFig4Findings: examFig4Findings(),
     summary: buildSummary(),
     updatedAt: new Date().toISOString()
   };
@@ -647,6 +664,8 @@ function saveProfile(record) {
     examMuscleFindings: record.muscleFindings,
     examOrthoFindings: record.orthoFindings,
     examNeuroFindings: record.neuroFindings,
+    examTorque: record.examTorque,
+    examFig4Findings: record.examFig4Findings,
     examUpdatedAt: record.updatedAt
   };
   writeProfiles(profiles);

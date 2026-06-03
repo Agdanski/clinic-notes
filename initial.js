@@ -6,6 +6,7 @@ const levels = [
   "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12",
   "L1", "L2", "L3", "L4", "L5", "SI-L", "SI-R"
 ];
+const subluxationPatternExtras = ["Torque R", "Torque L"];
 const xrayAreas = [
   "Skull", "Facial Bones", "Nasal Bones", "Mandible", "Pre-MRI Orbits", "Nasopharynx",
   "Ribs L", "Ribs R", "Sternoclavicular Joints", "Sternum", "Abdomen/KUB", "Acute Abdomen",
@@ -127,7 +128,7 @@ function mountLevels() {
   });
 
   const grid = $("#subluxationGrid");
-  levels.forEach((level) => {
+  [...levels, ...subluxationPatternExtras].forEach((level) => {
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.value = level;
@@ -212,6 +213,7 @@ function bindChoiceGroups() {
         state.choices[key] = state.choices[key] === value ? "" : value;
       }
       if (key === "neckAdj") normalizeNeckSetup();
+      if (key === "ltdClick") normalizeLimitedClick();
       renderChoices();
       scheduleAutosave();
     });
@@ -234,9 +236,15 @@ function normalizeNeckSetup() {
   if (state.choices.neckAdj === "Y") {
     const current = Array.isArray(state.choices.neckSetup) ? state.choices.neckSetup : [];
     state.choices.neckSetup = current.length ? current : ["Sup"];
+    delete state.choices.neckMob;
     return;
   }
   delete state.choices.neckSetup;
+  if (state.choices.neckAdj !== "N") delete state.choices.neckMob;
+}
+
+function normalizeLimitedClick() {
+  if (state.choices.ltdClick !== "Y") delete state.choices.ltdClickAreas;
 }
 
 function renderChoices() {
@@ -276,6 +284,8 @@ function renderConditionalFields() {
   $("#exerciseOtherWrap").hidden = !selectedIncludes("exercise", "Other");
   $("#xrayOtherWrap").hidden = !selectedIncludes("xrayRecommend", "Other");
   $("#neckSetupWrap").hidden = state.choices.neckAdj !== "Y";
+  $("#neckMobWrap").hidden = state.choices.neckAdj !== "N";
+  $("#ltdClickAreasWrap").hidden = state.choices.ltdClick !== "Y";
   $("#rmtWhoWrap").hidden = state.choices.rmt !== "Y";
   $("#acuWhoWrap").hidden = state.choices.acu !== "Y";
 }
@@ -327,7 +337,17 @@ function profileContraindications(fields) {
 }
 
 function profileImportantNotes() {
-  return "";
+  const lines = [];
+  const ltdAreas = Array.isArray(state.choices.ltdClickAreas) ? state.choices.ltdClickAreas : [];
+  if (state.choices.ltdClick === "Y" && ltdAreas.length) lines.push(`ltd click ${ltdAreas.join(", ")}`);
+  const intensityLabels = {
+    "Very gentle": "v.gen",
+    Gentle: "gen",
+    Heavy: "heavy"
+  };
+  if (intensityLabels[state.choices.intensity]) lines.push(intensityLabels[state.choices.intensity]);
+  if (state.choices.softTissueOnly === "Yes") lines.push("ST only");
+  return lines.join("\n");
 }
 
 function linesForFields(fields, pairs) {
@@ -379,10 +399,13 @@ function buildSummary() {
     `Subluxations to correct: ${choiceText("subluxationPattern")}`,
     `Neck adjustment: ${choiceText("neckAdj")}`,
     `Neck setup: ${state.choices.neckAdj === "Y" ? choiceText("neckSetup") : "Not applicable"}`,
+    `Mob: ${state.choices.neckAdj === "N" ? choiceText("neckMob") : "Not applicable"}`,
     `Click ok: ${choiceText("clickOk")}`,
     `Care model: ${choiceText("careModel")}`,
     `Lifetime adjustment: ${choiceText("lifetimeAdj")}`,
     `Wants click: ${choiceText("wantsClick")}`,
+    `Ltd click: ${choiceText("ltdClick")}`,
+    `Ltd click areas: ${state.choices.ltdClick === "Y" ? choiceText("ltdClickAreas") : "Not applicable"}`,
     `Intensity: ${choiceText("intensity")}`,
     `Soft tissue only: ${choiceText("softTissueOnly")}`,
     "",
@@ -395,12 +418,6 @@ function buildSummary() {
     `Under MD supervision: ${choiceText("underMd")}`,
     `Alternative care options: ${choiceText("alternativeCareOptions")}`,
     ...linesForFields(fields, [["Other alternative care", "alternativeCare"]]),
-    "",
-    "Exam Findings Transferred",
-    ...linesForFields(fields, [
-      ["Muscle testing positives", "examMuscleFindings"],
-      ["Neurological testing positives", "examNeuroFindings"]
-    ]),
     "",
     "Doctor Recommendations",
     `Recommend: ${choiceText("recommend")}`,
@@ -457,8 +474,11 @@ function saveProfile(record) {
     contraindications: profileContraindications(fields),
     importantNotes: profileImportantNotes(),
     neckAdjustment: state.choices.neckAdj || "",
+    neckMob: state.choices.neckMob || "",
     softTissueOnly: state.choices.softTissueOnly || "",
     intensity: state.choices.intensity || "",
+    limitedClick: state.choices.ltdClick || "",
+    limitedClickAreas: state.choices.ltdClickAreas || [],
     familyHistory: state.choices.familyHistory || [],
     strokeRisk: fields.strokeRisk || "",
     subjectiveDefaults: subjectiveDefaults(),
@@ -467,6 +487,8 @@ function saveProfile(record) {
     primarySubluxation: fields.primarySubluxation,
     subluxations: state.choices.subluxationPattern || [],
     treatmentPlan: fields.treatmentPlan,
+    orthoticsLastDate: fields.orthoticsLastDate || "",
+    orthoticsRecheckDate: fields.recheckDate || "",
     doctor: fields.doctor,
     updatedAt: record.updatedAt
   };
@@ -504,14 +526,13 @@ function validateDoctor() {
 }
 
 function autosaveBeforeLeave() {
-  if (!$("#doctor").value.trim()) return;
   saveInitial("");
 }
 
 function scheduleAutosave() {
   if (!state.autosaveReady) return;
   window.clearTimeout(autosaveTimer);
-  autosaveTimer = window.setTimeout(() => saveInitial("Autosaved."), 700);
+  autosaveTimer = window.setTimeout(() => saveInitial("Autosaved."), 350);
 }
 
 function addYears(dateValue, years) {
@@ -523,7 +544,6 @@ function addYears(dateValue, years) {
 }
 
 function updateOrthoticsRecheck() {
-  if (state.choices.orthotics !== "Y") return;
   const lastDate = document.querySelector('[name="orthoticsLastDate"]').value;
   const recheck = document.querySelector('[name="recheckDate"]');
   if (!lastDate) return;
@@ -583,6 +603,7 @@ function loadInitialRecord(record) {
   });
   state.choices = { ...(record.choices || {}) };
   normalizeNeckSetup();
+  normalizeLimitedClick();
   updateAge();
   updateOrthoticsRecheck();
   renderChoices();
@@ -665,11 +686,11 @@ function bindActions() {
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a[href]");
     if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
+    autosaveBeforeLeave();
     if (!validateDoctor()) {
       event.preventDefault();
       return;
     }
-    autosaveBeforeLeave();
   });
   window.addEventListener("pagehide", autosaveBeforeLeave);
   window.addEventListener("beforeunload", (event) => {
@@ -679,12 +700,24 @@ function bindActions() {
   });
 }
 
+function bindRoleFilters() {
+  const sheet = $(".initial-sheet");
+  $$(".role-filter").forEach((button) => {
+    button.addEventListener("click", () => {
+      const view = button.dataset.roleFilter || "default";
+      sheet.dataset.roleView = view;
+      $$(".role-filter").forEach((item) => item.classList.toggle("is-selected", item === button));
+    });
+  });
+}
+
 mountLevels();
 mountXrayAreas();
 mountChiefComplaintButtons();
 bindChoiceGroups();
 bindFields();
 bindActions();
+bindRoleFilters();
 updateDateParts();
 updateAge();
 setInitialDefaults();

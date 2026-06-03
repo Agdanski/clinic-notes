@@ -31,9 +31,9 @@
     </header>
 
     <div class="role-legend" aria-label="Section responsibility legend">
-      <span class="doctor-key">Doctor completes</span>
-      <span class="staff-key">Staff or automatic</span>
-      <span class="exam-key">Transferred from exam</span>
+      <button type="button" class="role-filter is-selected" data-role-filter="default">Default</button>
+      <button type="button" class="role-filter doctor-key" data-role-filter="doctor">Doctor</button>
+      <button type="button" class="role-filter staff-key" data-role-filter="staff">Staff</button>
     </div>
 
     <section class="sheet initial-sheet" id="initialSheet">
@@ -71,7 +71,7 @@
       <section class="initial-section staff-section">
         <div class="section-head">
           <h2>Visit Type</h2>
-          <span>Staff or automatic</span>
+          <span>Staff</span>
         </div>
         <div class="field-grid one">
           <div class="choice-group" data-group="visitType">
@@ -200,6 +200,13 @@
                 <button type="button" data-value="Ant">Ant</button>
               </span>
             </label>
+            <label id="neckMobWrap">
+              <span>Mob?</span>
+              <span class="choice-group inline" data-group="neckMob">
+                <button type="button" data-value="Yes">Yes</button>
+                <button type="button" data-value="No">No</button>
+              </span>
+            </label>
             <label>
               <span>Click ok</span>
               <span class="choice-group inline" data-group="clickOk">
@@ -241,6 +248,21 @@
                 <button type="button" data-value="Y">Y</button>
                 <button type="button" data-value="N">N</button>
                 <button type="button" data-value="N/A">N/A</button>
+              </span>
+            </label>
+            <label>
+              <span>Ltd click</span>
+              <span class="choice-group inline" data-group="ltdClick">
+                <button type="button" data-value="Y">Y</button>
+                <button type="button" data-value="N">N</button>
+              </span>
+            </label>
+            <label id="ltdClickAreasWrap">
+              <span>Ltd click areas</span>
+              <span class="choice-group inline multi" data-group="ltdClickAreas">
+                <button type="button" data-value="C">C</button>
+                <button type="button" data-value="T">T</button>
+                <button type="button" data-value="LB">LB</button>
               </span>
             </label>
             <label>
@@ -340,23 +362,6 @@
         </div>
       </section>
 
-      <section class="initial-section exam-section">
-        <div class="section-head">
-          <h2>Exam Findings</h2>
-          <span>Transferred from exam form when positive</span>
-        </div>
-        <div class="field-grid two textareas">
-          <label>
-            <span>Muscle testing positives</span>
-            <textarea name="examMuscleFindings" rows="4" readonly placeholder="Transferred from examination form"></textarea>
-          </label>
-          <label>
-            <span>Neurological testing positives</span>
-            <textarea name="examNeuroFindings" rows="4" readonly placeholder="Transferred from examination form"></textarea>
-          </label>
-        </div>
-      </section>
-
       <section class="initial-section doctor-section">
         <div class="section-head">
           <h2>Doctor Recommendations</h2>
@@ -403,7 +408,7 @@
       <section class="initial-section staff-section">
         <div class="section-head">
           <h2>Referral / Prior Care</h2>
-          <span>Staff or automatic</span>
+          <span>Staff</span>
         </div>
         <div class="field-grid two">
           <label>
@@ -447,7 +452,7 @@
       <section class="initial-section staff-section">
         <div class="section-head">
           <h2>Goals And Lifestyle</h2>
-          <span>Staff or automatic</span>
+          <span>Staff</span>
         </div>
         <div class="field-grid two textareas">
           <label>
@@ -490,7 +495,7 @@
       <section class="initial-section staff-section">
         <div class="section-head">
           <h2>Orthotics And Practitioners</h2>
-          <span>Staff or automatic</span>
+          <span>Staff</span>
         </div>
         <div class="recommend-grid">
           <label>
