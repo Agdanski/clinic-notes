@@ -654,15 +654,62 @@ dialog {
   font-weight: 900;
 }
 
-#reexamOriginalFindings {
+.reexam-findings {
+  display: grid;
+  gap: 8px;
   max-height: 240px;
   overflow: auto;
   margin: 0;
+}
+
+.reexam-test-card {
+  display: grid;
+  gap: 7px;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcfc;
-  white-space: pre-wrap;
+}
+
+.reexam-test-card header {
+  display: grid;
+  gap: 2px;
+}
+
+.reexam-test-card strong {
+  font-size: 0.92rem;
+}
+
+.reexam-test-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.reexam-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.reexam-choice-row em {
+  min-width: 58px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.reexam-choice-row button {
+  min-height: 30px;
+  padding: 0 9px;
+}
+
+.reexam-choice-row button.is-selected {
+  border-color: var(--select-border);
+  background: var(--select);
 }
 
 .reexam-actions {

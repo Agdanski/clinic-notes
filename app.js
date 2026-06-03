@@ -1,5 +1,6 @@
 const STORAGE_KEY = "clinic-repeat-soap-drafts-v2";
 const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
+const EXAM_STORAGE_KEY = "clinic-vsc-exam-records-v1";
 
 const patientDefaults = {
   patientName: "",
@@ -32,7 +33,7 @@ const state = {
   single: defaultSingle(),
   visitLevels: new Set(),
   levelFindings: {},
-  reexamReview: { notes: "", completed: false, updatedAt: "" },
+  reexamReview: { notes: "", results: {}, completed: false, updatedAt: "" },
   reexamPromptKey: "",
   currentDraftId: null,
   profileSubjectiveDefaultsApplied: false,
@@ -66,6 +67,27 @@ const frequencyOptions = [
 const muscleSideOptions = sideOptions;
 const muscleStrengthOptions = [{ label: "Normal", value: "normal" }, { label: "Weak", value: "weak" }];
 const plusMinusOptions = [{ label: "Positive", value: "+" }, { label: "Negative", value: "-" }];
+const examRetestOptions = {
+  grade: ["1", "2", "3", "4+"],
+  ortho: ["L +", "L -", "R +", "R -", "Both +", "Both -"],
+  dtr: ["0", "1+", "2+", "3+", "4+"],
+  motor: ["0/5", "1/5", "2/5", "3/5", "4/5", "5/5"],
+  sensation: ["Normal", "Decreased"],
+  cranial: ["UR", "AbN"],
+  shoulderMotion: ["L normal", "L decreased", "R normal", "R decreased"]
+};
+const examMuscleItems = ["Psoas", "Piriformis", "QF", "Glut", "Hamst", "Delt", "Pect", "Lats", "Other", "S. Spin"];
+const examOrthoItems = ["Heel to buttock", "Ely's", "Yeomans", "SLR", "Kemp's", "Int shoulder rotation", "Ext shoulder rotation", "Figure 4"];
+const examCompressionItems = ["Jacksons", "Spurlings"];
+const examDtrItems = ["Triceps", "Biceps", "Radial", "Patellar", "Achilles"];
+const examMotorItems = ["C5", "C6", "C7", "C8", "T1", "L3", "L4", "L5", "S1"];
+const examSensationItems = ["C5", "C6", "C7", "C8", "T1", "L3", "L4", "L5"];
+const examCranialItems = [
+  "Visual acuity (II)", "Pupillary reactions (II, III)", "Extraocular movement (III, IV, VI)",
+  "Corneal reflex / jaw movement (V)", "Facial sensation (V1, V2, V3)", "Facial movement (VII)",
+  "Hearing (VIII)", "Swallowing / rising palate (IX, X)", "Voice / speech (X, V, VII, XII)",
+  "Tongue inspection (XII)", "Babinsky"
+];
 
 const subjectiveItems = [
   ["Same", "subjectiveChange", "Same"], ["Better", "subjectiveChange", "Better"], ["Worse", "subjectiveChange", "Worse"],
@@ -467,6 +489,16 @@ function hipLevelMarkup(value) {
   return `<span class="shoulder-symbol hip-symbol ${className}" aria-hidden="true"><span class="shoulder-bar"></span><span class="shoulder-stem"></span></span>`;
 }
 
+function examShoulderLevelMarkup(value) {
+  const className = value === "L" ? "high-left" : value === "R" ? "high-right" : "even";
+  return `<span class="shoulder-symbol ${className}" aria-hidden="true"><span class="shoulder-bar"></span><span class="shoulder-stem"></span></span>`;
+}
+
+function examHipLevelMarkup(value) {
+  const className = value === "L" ? "high-left" : value === "R" ? "high-right" : "even";
+  return `<span class="shoulder-symbol hip-symbol ${className}" aria-hidden="true"><span class="shoulder-bar"></span><span class="shoulder-stem"></span></span>`;
+}
+
 function renderButton(button) {
   const { line, label, mode, value } = button.dataset;
   const key = makeKey(line, label);
@@ -604,15 +636,115 @@ function selectedMarks(line) {
 }
 
 function reexamOriginalFindings() {
+  return reexamOriginalItems().map((item) => `${item.section}\n${item.label}: ${item.original}`).join("\n\n");
+}
+
+function reexamOriginalItems() {
   const profile = currentPatientProfile() || {};
+  if (Array.isArray(profile.examRetestItems) && profile.examRetestItems.length) return profile.examRetestItems;
+  const examItems = reexamItemsFromExamRecord(currentPatientExamRecord());
+  if (examItems.length) return examItems;
   return [
+    ["Posture", profile.examPostureFindings],
     ["Myopathology", profile.examMuscleFindings],
     ["Orthopaedic tests", profile.examOrthoFindings],
     ["Neurological / DTR / motor / sensation", profile.examNeuroFindings]
-  ].map(([label, value]) => {
+  ].flatMap(([section, value]) => {
     const text = String(value || "").trim();
-    return text ? `${label}\n${text}` : "";
-  }).filter(Boolean).join("\n\n");
+    if (!text) return [];
+    return text.split(";").map((line, index) => {
+      const clean = line.trim();
+      return clean ? {
+        id: `${section}-${index}`,
+        section,
+        label: clean.split(":")[0] || section,
+        original: clean.includes(":") ? clean.split(":").slice(1).join(":").trim() : clean,
+        groups: [{ key: "result", label: "Result", options: ["Resolved", "Improved", "Same", "Worse"] }]
+      } : null;
+    }).filter(Boolean);
+  });
+}
+
+function savedExamRecords() {
+  try {
+    return JSON.parse(localStorage.getItem(EXAM_STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function currentPatientExamRecord() {
+  const patient = currentPatientName();
+  if (!patient) return null;
+  return savedExamRecords().find((record) => String(record?.fields?.patientName || "").trim().toLowerCase() === patient) || null;
+}
+
+function postureLevelOriginal(kind, value) {
+  if (kind === "hip") {
+    if (value === "L") return "High left hip";
+    if (value === "N") return "Even hips";
+    if (value === "R") return "High right hip";
+    return "";
+  }
+  if (value === "L") return "High left shoulder";
+  if (value === "N") return "Even shoulders";
+  if (value === "R") return "High right shoulder";
+  return "";
+}
+
+function reexamItemsFromExamRecord(record) {
+  const choices = record?.choices || {};
+  const items = [];
+  const add = (item) => items.push({ id: item.id, section: item.section, label: item.label, original: item.original, groups: item.groups });
+  if (choices.fhpGrade) add({ id: "fhpGrade", section: "Posture", label: "FHP grade", original: `Grade ${choices.fhpGrade}`, groups: [{ key: "grade", label: "Grade", options: examRetestOptions.grade }] });
+  if (choices.swaybackGrade) add({ id: "swaybackGrade", section: "Posture", label: "Swayback grade", original: `Grade ${choices.swaybackGrade}`, groups: [{ key: "grade", label: "Grade", options: examRetestOptions.grade }] });
+  if (choices["posture:Shoulder high"]) add({ id: "posture:Shoulder high", section: "Posture", label: "Shoulder level", original: postureLevelOriginal("shoulder", choices["posture:Shoulder high"]), groups: [{ key: "level", label: "Level", options: ["L", "N", "R"], display: "shoulderLevel" }] });
+  if (choices["posture:Hip high"]) add({ id: "posture:Hip high", section: "Posture", label: "Hip level", original: postureLevelOriginal("hip", choices["posture:Hip high"]), groups: [{ key: "level", label: "Level", options: ["L", "N", "R"], display: "hipLevel" }] });
+
+  examMuscleItems.forEach((item) => {
+    const finding = choices[`muscle:${item}:finding`];
+    if (!finding || finding === "Normal") return;
+    const side = choices[`muscle:${item}:side`];
+    add({
+      id: `muscle:${item}`,
+      section: "Myopathology",
+      label: item,
+      original: `${finding}${side ? ` ${side}` : ""}`,
+      groups: [
+        { key: "finding", label: "Finding", options: ["Normal", "Weak", "Painful"] },
+        { key: "side", label: "Side", options: ["L", "R", "Both"] }
+      ]
+    });
+  });
+  examOrthoItems.forEach((item) => {
+    const values = Array.isArray(choices[`ortho:${item}`]) ? choices[`ortho:${item}`] : [];
+    if (values.length) add({ id: `ortho:${item}`, section: "Orthopaedic tests", label: item, original: values.join(", "), groups: [{ key: "result", label: "Result", options: examRetestOptions.ortho, multi: true }] });
+  });
+  if (choices["ortho:Valsalvas"]) add({ id: "ortho:Valsalvas", section: "Orthopaedic tests", label: "Valsalvas", original: choices["ortho:Valsalvas"], groups: [{ key: "result", label: "Result", options: ["+", "-"] }] });
+  ["C/S rotation", "C/S lateral flexion"].forEach((item) => {
+    const values = Array.isArray(choices[`motion:${item}`]) ? choices[`motion:${item}`].filter((entry) => entry.includes("decreased")) : [];
+    if (values.length) add({ id: `motion:${item}`, section: "Orthopaedic tests", label: item, original: values.join(", "), groups: [{ key: "motion", label: "Motion", options: examRetestOptions.shoulderMotion, multi: true }] });
+  });
+  examCompressionItems.forEach((item) => {
+    const values = Array.isArray(choices[`compression:${item}`]) ? choices[`compression:${item}`].filter((entry) => entry.includes("+") || entry.includes("AbN")) : [];
+    if (values.length) add({ id: `compression:${item}`, section: "Compression tests", label: item, original: values.join(", "), groups: [{ key: "result", label: "Result", options: examRetestOptions.ortho, multi: true }] });
+  });
+  examDtrItems.forEach((item) => ["L", "R"].forEach((side) => {
+    const value = choices[`dtr:${item}:${side}`];
+    if (value && value !== "2+") add({ id: `dtr:${item}:${side}`, section: "DTR / Motor / Sensation", label: `${item} DTR ${side}`, original: value, groups: [{ key: "grade", label: "Grade", options: examRetestOptions.dtr }] });
+  }));
+  examMotorItems.forEach((item) => ["L", "R"].forEach((side) => {
+    const value = choices[`motor:${item}:${side}`];
+    if (value && value !== "5/5") add({ id: `motor:${item}:${side}`, section: "DTR / Motor / Sensation", label: `${item} motor ${side}`, original: value, groups: [{ key: "grade", label: "Grade", options: examRetestOptions.motor }] });
+  }));
+  examSensationItems.forEach((item) => ["L", "R"].forEach((side) => {
+    const value = choices[`sensation:${item}:${side}`];
+    if (value === "Decreased") add({ id: `sensation:${item}:${side}`, section: "DTR / Motor / Sensation", label: `${item} sensation ${side}`, original: "Decreased", groups: [{ key: "sensation", label: "Sensation", options: examRetestOptions.sensation }] });
+  }));
+  examCranialItems.forEach((item) => {
+    if (choices[`cranial:${item}`] === "AbN") add({ id: `cranial:${item}`, section: "Neurological Assessment", label: item, original: "AbN", groups: [{ key: "result", label: "Result", options: examRetestOptions.cranial }] });
+  });
+  return items;
 }
 
 function reexamReviewRequired() {
@@ -626,8 +758,7 @@ function reexamReviewPromptKey() {
 function renderReexamReview() {
   const dialog = $("#reexamDialog");
   if (!dialog) return;
-  const findings = reexamOriginalFindings();
-  $("#reexamOriginalFindings").textContent = findings || "No positive exam findings documented from the Exam page.";
+  renderReexamFindingCards();
   if ($("#reexamReviewNote") !== document.activeElement) $("#reexamReviewNote").value = state.reexamReview.notes || "";
   const shouldPrompt = reexamReviewRequired() && !state.reexamReview.completed;
   if (!shouldPrompt) return;
@@ -641,20 +772,104 @@ function renderReexamReview() {
 
 function saveReexamReview(closeDialog = true) {
   const note = $("#reexamReviewNote").value.trim();
-  if (reexamReviewRequired() && !note) {
-    $("#reexamReviewNote").focus();
-    setStatus("Document the re-exam re-test findings before finishing this re-exam.");
-    return false;
-  }
   state.reexamReview = {
     notes: note,
-    completed: Boolean(note) || !reexamReviewRequired(),
+    results: state.reexamReview.results || {},
+    completed: true,
     updatedAt: new Date().toISOString()
   };
   if (closeDialog) $("#reexamDialog").close();
   renderAll();
   setStatus("Re-exam re-test saved.");
   return true;
+}
+
+function reexamResultFor(itemId, groupKey) {
+  return state.reexamReview.results?.[itemId]?.[groupKey];
+}
+
+function setReexamResult(itemId, group, value) {
+  const results = { ...(state.reexamReview.results || {}) };
+  const itemResults = { ...(results[itemId] || {}) };
+  if (group.multi) {
+    const values = new Set(Array.isArray(itemResults[group.key]) ? itemResults[group.key] : []);
+    if (values.has(value)) values.delete(value);
+    else values.add(value);
+    if (values.size) itemResults[group.key] = Array.from(values);
+    else delete itemResults[group.key];
+  } else {
+    itemResults[group.key] = itemResults[group.key] === value ? "" : value;
+    if (!itemResults[group.key]) delete itemResults[group.key];
+  }
+  if (Object.keys(itemResults).length) results[itemId] = itemResults;
+  else delete results[itemId];
+  state.reexamReview = {
+    ...state.reexamReview,
+    results,
+    completed: false
+  };
+  renderAll();
+}
+
+function renderReexamFindingCards() {
+  const target = $("#reexamOriginalFindings");
+  const items = reexamOriginalItems();
+  target.innerHTML = "";
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.className = "reexam-test-card";
+    empty.textContent = "No positive exam findings documented from the Exam page.";
+    target.appendChild(empty);
+    return;
+  }
+  items.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "reexam-test-card";
+    const head = document.createElement("header");
+    const title = document.createElement("strong");
+    title.textContent = item.label;
+    const original = document.createElement("span");
+    original.textContent = `${item.section}: original ${item.original}`;
+    head.append(title, original);
+    card.appendChild(head);
+    (item.groups || []).forEach((group) => {
+      const row = document.createElement("div");
+      row.className = "reexam-choice-row";
+      const label = document.createElement("em");
+      label.textContent = group.label || group.key;
+      row.appendChild(label);
+      (group.options || []).forEach((option) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.itemId = item.id;
+        button.dataset.groupKey = group.key;
+        button.dataset.value = option;
+        button.textContent = option;
+        if (group.display === "shoulderLevel") button.innerHTML = examShoulderLevelMarkup(option);
+        if (group.display === "hipLevel") button.innerHTML = examHipLevelMarkup(option);
+        const current = reexamResultFor(item.id, group.key);
+        const active = Array.isArray(current) ? current.includes(option) : current === option;
+        button.classList.toggle("is-selected", active);
+        button.addEventListener("click", () => setReexamResult(item.id, group, option));
+        row.appendChild(button);
+      });
+      card.appendChild(row);
+    });
+    target.appendChild(card);
+  });
+}
+
+function reexamReviewResultText() {
+  const results = state.reexamReview.results || {};
+  return reexamOriginalItems().map((item) => {
+    const itemResults = results[item.id] || {};
+    const parts = (item.groups || []).map((group) => {
+      const value = itemResults[group.key];
+      const text = Array.isArray(value) ? value.join(", ") : value;
+      return text ? `${group.label || group.key}: ${text}` : "";
+    }).filter(Boolean);
+    return parts.length ? `${item.label}: ${parts.join("; ")}` : "";
+  }).filter(Boolean).join("\n");
 }
 
 function renderOrthos() {
@@ -830,8 +1045,9 @@ function buildSummary() {
   const reexamLines = reexamReviewRequired() || state.reexamReview.notes ? [
     "Re-exam Re-test",
     `Original positive findings: ${filled(reexamOriginalFindings(), "No positive exam findings documented from the Exam page.")}`,
-    `Doctor re-test findings: ${filled(state.reexamReview.notes)}`
-  ] : [];
+    `Re-test selections: ${filled(reexamReviewResultText(), "No re-test selections documented")}`,
+    state.reexamReview.notes ? `Doctor re-test findings: ${state.reexamReview.notes}` : ""
+  ].filter(Boolean) : [];
   return [
     "Gdanski Chiropractic Clinic",
     "Repeat Visit SOAP Note",
@@ -926,7 +1142,7 @@ function loadNote(note) {
   state.single = { ...defaultSingle(), ...(note.single || {}) };
   state.visitLevels = new Set(note.visitLevels || []);
   state.levelFindings = note.levelFindings || {};
-  state.reexamReview = note.reexamReview || { notes: "", completed: false, updatedAt: "" };
+  state.reexamReview = { notes: "", results: {}, completed: false, updatedAt: "", ...(note.reexamReview || {}) };
   state.reexamPromptKey = "";
   state.currentDraftId = note.id || `draft-${Date.now()}`;
   state.profileSubjectiveDefaultsApplied = true;
@@ -1060,6 +1276,7 @@ function noteHasMeaningfulContent() {
     state.visitLevels.size ||
     Object.keys(state.levelFindings).length ||
     state.orthosOpen ||
+    Object.keys(state.reexamReview.results || {}).length ||
     state.reexamReview.notes ||
     state.reexamReview.completed ||
     state.single.subjectiveChange ||
@@ -1288,10 +1505,10 @@ function validateReexamAt() {
 
 function validateReexamReview() {
   if (!reexamReviewRequired()) return true;
-  if (state.reexamReview.completed && String(state.reexamReview.notes || "").trim()) return true;
+  if (state.reexamReview.completed) return true;
   if (!$("#reexamDialog").open) $("#reexamDialog").showModal();
   $("#reexamReviewNote").focus();
-  setStatus("Complete the re-exam re-test before saving this SOAP note.");
+  setStatus("Click Done in the re-exam re-test before saving this SOAP note.");
   return false;
 }
 
@@ -1385,7 +1602,7 @@ function resetNote() {
   state.selected["S:CK"] = true;
   state.visitLevels = new Set();
   state.levelFindings = {};
-  state.reexamReview = { notes: "", completed: false, updatedAt: "" };
+  state.reexamReview = { notes: "", results: {}, completed: false, updatedAt: "" };
   state.reexamPromptKey = "";
   state.currentDraftId = null;
   state.profileSubjectiveDefaultsApplied = false;

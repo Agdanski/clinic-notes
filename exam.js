@@ -85,6 +85,12 @@ function choiceValue(key) {
   return value || "";
 }
 
+function choiceArray(key) {
+  const value = state.choices[key];
+  if (Array.isArray(value)) return value;
+  return value ? [value] : [];
+}
+
 function fieldsData() {
   const fields = {};
   $$("input[name], textarea[name], select[name]").forEach((field) => {
@@ -369,6 +375,95 @@ function compressionFindings() {
   return abnormalEntries("compression:").filter((line) => line.includes("+") || line.includes("AbN"));
 }
 
+function postureLevelText(kind, value) {
+  if (kind === "hip") {
+    if (value === "L") return "High left hip";
+    if (value === "N") return "Even hips";
+    if (value === "R") return "High right hip";
+    return "";
+  }
+  if (value === "L") return "High left shoulder";
+  if (value === "N") return "Even shoulders";
+  if (value === "R") return "High right shoulder";
+  return "";
+}
+
+function examRetestItems(fields = fieldsData()) {
+  const items = [];
+  const add = (item) => items.push({ id: item.id, section: item.section, label: item.label, original: item.original, groups: item.groups });
+  const gradeOptions = ["1", "2", "3", "4+"];
+  const orthoOptions = orthoResultOptions;
+
+  if (choiceValue("fhpGrade")) {
+    add({ id: "fhpGrade", section: "Posture", label: "FHP grade", original: `Grade ${choiceValue("fhpGrade")}`, groups: [{ key: "grade", label: "Grade", options: gradeOptions }] });
+  }
+  if (choiceValue("swaybackGrade")) {
+    add({ id: "swaybackGrade", section: "Posture", label: "Swayback grade", original: `Grade ${choiceValue("swaybackGrade")}`, groups: [{ key: "grade", label: "Grade", options: gradeOptions }] });
+  }
+  const shoulderLevel = state.choices["posture:Shoulder high"];
+  if (shoulderLevel) {
+    add({ id: "posture:Shoulder high", section: "Posture", label: "Shoulder level", original: postureLevelText("shoulder", shoulderLevel), groups: [{ key: "level", label: "Level", options: ["L", "N", "R"], display: "shoulderLevel" }] });
+  }
+  const hipLevel = state.choices["posture:Hip high"];
+  if (hipLevel) {
+    add({ id: "posture:Hip high", section: "Posture", label: "Hip level", original: postureLevelText("hip", hipLevel), groups: [{ key: "level", label: "Level", options: ["L", "N", "R"], display: "hipLevel" }] });
+  }
+
+  muscleItems.forEach((item) => {
+    const finding = state.choices[`muscle:${item}:finding`];
+    if (!finding || finding === "Normal") return;
+    const side = state.choices[`muscle:${item}:side`];
+    add({
+      id: `muscle:${item}`,
+      section: "Myopathology",
+      label: item,
+      original: `${finding}${side ? ` ${side}` : ""}`,
+      groups: [
+        { key: "finding", label: "Finding", options: ["Normal", "Weak", "Painful"] },
+        { key: "side", label: "Side", options: ["L", "R", "Both"] }
+      ]
+    });
+  });
+
+  orthoItems.forEach((item) => {
+    const values = choiceArray(`ortho:${item}`);
+    if (!values.length) return;
+    add({ id: `ortho:${item}`, section: "Orthopaedic tests", label: item, original: values.join(", "), groups: [{ key: "result", label: "Result", options: orthoOptions, multi: true }] });
+  });
+  if (choiceValue("ortho:Valsalvas")) {
+    add({ id: "ortho:Valsalvas", section: "Orthopaedic tests", label: "Valsalvas", original: choiceValue("ortho:Valsalvas"), groups: [{ key: "result", label: "Result", options: ["+", "-"] }] });
+  }
+  cervicalMotionItems.forEach((item) => {
+    const decreased = choiceArray(`motion:${item}`).filter((entry) => entry.includes("decreased"));
+    if (!decreased.length) return;
+    add({ id: `motion:${item}`, section: "Orthopaedic tests", label: item, original: decreased.join(", "), groups: [{ key: "motion", label: "Motion", options: ["L normal", "L decreased", "R normal", "R decreased"], multi: true }] });
+  });
+
+  compressionItems.forEach((item) => {
+    const values = choiceArray(`compression:${item}`).filter((entry) => entry.includes("+") || entry.includes("AbN"));
+    if (!values.length) return;
+    add({ id: `compression:${item}`, section: "Compression tests", label: item, original: values.join(", "), groups: [{ key: "result", label: "Result", options: orthoOptions, multi: true }] });
+  });
+  dtrItems.forEach((item) => ["L", "R"].forEach((side) => {
+    const value = state.choices[`dtr:${item}:${side}`];
+    if (value && value !== "2+") add({ id: `dtr:${item}:${side}`, section: "DTR / Motor / Sensation", label: `${item} DTR ${side}`, original: value, groups: [{ key: "grade", label: "Grade", options: dtrGrades }] });
+  }));
+  motorItems.forEach((item) => ["L", "R"].forEach((side) => {
+    const value = state.choices[`motor:${item}:${side}`];
+    if (value && value !== "5/5") add({ id: `motor:${item}:${side}`, section: "DTR / Motor / Sensation", label: `${item} motor ${side}`, original: value, groups: [{ key: "grade", label: "Grade", options: motorGrades }] });
+  }));
+  sensationItems.forEach((item) => ["L", "R"].forEach((side) => {
+    const value = state.choices[`sensation:${item}:${side}`];
+    if (value === "Decreased") add({ id: `sensation:${item}:${side}`, section: "DTR / Motor / Sensation", label: `${item} sensation ${side}`, original: "Decreased", groups: [{ key: "sensation", label: "Sensation", options: ["Normal", "Decreased"] }] });
+  }));
+  cranialItems.forEach((item) => {
+    const value = state.choices[`cranial:${item}`];
+    if (value === "AbN") add({ id: `cranial:${item}`, section: "Neurological Assessment", label: item, original: "AbN", groups: [{ key: "result", label: "Result", options: ["UR", "AbN"] }] });
+  });
+
+  return items;
+}
+
 function motionFindings() {
   return cervicalMotionItems.map((item) => {
     const value = state.choices[`motion:${item}`] || [];
@@ -476,10 +571,13 @@ function buildSummary() {
 
 function noteData() {
   const fields = fieldsData();
+  const retestItems = examRetestItems(fields);
   return {
     id: storageId(fields),
     fields,
     choices: state.choices,
+    postureFindings: retestItems.filter((item) => item.section === "Posture").map((item) => `${item.label}: ${item.original}`).join("; "),
+    examRetestItems: retestItems,
     muscleFindings: muscleFindings().join("; "),
     orthoFindings: orthoFindings().join("; "),
     neuroFindings: neuroFindings().join("; "),
@@ -544,6 +642,8 @@ function saveProfile(record) {
     ...(profiles[key] || {}),
     patientName: record.fields.patientName,
     patientId: record.fields.patientId || profiles[key]?.patientId || "",
+    examPostureFindings: record.postureFindings,
+    examRetestItems: record.examRetestItems || [],
     examMuscleFindings: record.muscleFindings,
     examOrthoFindings: record.orthoFindings,
     examNeuroFindings: record.neuroFindings,
