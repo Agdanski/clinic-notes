@@ -156,6 +156,37 @@
   padding: 0 10px;
 }
 
+.subjective-defaults {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.subjective-defaults button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.subjective-defaults button.is-selected {
+  border-color: var(--select-border);
+  background: var(--select);
+}
+
+.subjective-defaults .badge {
+  display: inline-flex;
+  min-width: 18px;
+  min-height: 18px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
 .choice-group button.is-selected {
   border-color: var(--select-border);
   background: var(--select);

@@ -25,6 +25,14 @@ const state = {
 
 let autosaveTimer = null;
 
+const initialSubjectiveItems = [
+  ["Constant", "subjectiveChange", "Constant"], ["Improving", "subjectiveChange", "Improving"], ["Worsening", "subjectiveChange", "Worsening"],
+  ["CK"], ["C", "side"], ["T", "side"], ["LB", "side"], ["S", "side"], ["SI", "side"], ["SH", "side"], ["SB", "side"],
+  ["EL", "side"], ["WR", "side"], ["FIN", "side"], ["HIP", "side"], ["KN", "side"], ["FT", "side"], ["Toe", "side"],
+  ["TMJ", "side"], ["H", "side"], ["PMS"], ["GI"], ["SIC"], ["AL"], ["SIN"], ["DY"], ["TRAM"], ["STRES"], ["W"]
+];
+const sideCycle = ["", "L", "R", "B"];
+
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -139,6 +147,54 @@ function mountXrayAreas() {
   });
 }
 
+function mountChiefComplaintButtons() {
+  const target = $("#chiefComplaintButtons");
+  if (!target) return;
+  target.innerHTML = "";
+  initialSubjectiveItems.forEach(([label, mode, value]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.label = label;
+    button.dataset.mode = mode || "toggle";
+    if (value) button.dataset.value = value;
+    button.textContent = label;
+    button.addEventListener("click", () => handleChiefComplaintButton(button));
+    target.appendChild(button);
+  });
+}
+
+function subjectiveDefaults() {
+  const defaults = state.choices.subjectiveDefaults || {};
+  return {
+    selected: { ...(defaults.selected || {}) },
+    sided: { ...(defaults.sided || {}) },
+    single: { ...(defaults.single || {}) }
+  };
+}
+
+function setSubjectiveDefaults(defaults) {
+  state.choices.subjectiveDefaults = defaults;
+}
+
+function handleChiefComplaintButton(button) {
+  const { label, mode, value } = button.dataset;
+  const defaults = subjectiveDefaults();
+  if (mode === "subjectiveChange") {
+    defaults.single.subjectiveChange = defaults.single.subjectiveChange === value ? "" : value;
+  } else if (mode === "side") {
+    const current = defaults.sided[label] || "";
+    const next = sideCycle[(sideCycle.indexOf(current) + 1) % sideCycle.length];
+    if (next) defaults.sided[label] = next;
+    else delete defaults.sided[label];
+  } else {
+    defaults.selected[label] = !defaults.selected[label];
+    if (!defaults.selected[label]) delete defaults.selected[label];
+  }
+  setSubjectiveDefaults(defaults);
+  renderChoices();
+  scheduleAutosave();
+}
+
 function bindChoiceGroups() {
   $$(".choice-group").forEach((group) => {
     group.addEventListener("click", (event) => {
@@ -195,7 +251,20 @@ function renderChoices() {
     });
   });
   renderConditionalFields();
+  renderChiefComplaintButtons();
   $("#summaryText").textContent = buildSummary();
+}
+
+function renderChiefComplaintButtons() {
+  const defaults = subjectiveDefaults();
+  $$("#chiefComplaintButtons button[data-label]").forEach((button) => {
+    const { label, mode, value } = button.dataset;
+    const side = defaults.sided[label] || "";
+    const selected = mode === "subjectiveChange" ? defaults.single.subjectiveChange === value : mode === "side" ? Boolean(side) : Boolean(defaults.selected[label]);
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+    button.innerHTML = `${label}${side ? `<span class="badge">${side}</span>` : ""}`;
+  });
 }
 
 function selectedIncludes(key, value) {
@@ -258,11 +327,7 @@ function profileContraindications(fields) {
 }
 
 function profileImportantNotes() {
-  return [
-    state.choices.neckAdj === "N" ? "NO NECK" : "",
-    state.choices.softTissueOnly === "Yes" ? "SOFT TISSUE ONLY" : "",
-    state.choices.intensity === "Very gentle" ? "VERY GENTLE" : ""
-  ].filter(Boolean).join("\n");
+  return "";
 }
 
 function linesForFields(fields, pairs) {
@@ -289,6 +354,7 @@ function buildSummary() {
     `Adjusted first visit: ${choiceText("adjusted")}`,
     "",
     "Chief Complaint",
+    `Chief complaint quick selections: ${subjectiveDefaultsText() || "Not documented"}`,
     ...linesForFields(fields, [["Chief complaint", "chiefComplaint"]]),
     "",
     "History And DC Comments",
@@ -395,6 +461,7 @@ function saveProfile(record) {
     intensity: state.choices.intensity || "",
     familyHistory: state.choices.familyHistory || [],
     strokeRisk: fields.strokeRisk || "",
+    subjectiveDefaults: subjectiveDefaults(),
     schedule: fields.frequency,
     diagnosis: fields.diagnosis,
     primarySubluxation: fields.primarySubluxation,
@@ -406,12 +473,39 @@ function saveProfile(record) {
   writeProfiles(profiles);
 }
 
-function saveInitial(statusMessage = "Initial visit saved.") {
+function subjectiveDefaultsText() {
+  const defaults = subjectiveDefaults();
+  const parts = [];
+  if (defaults.single.subjectiveChange) parts.push(defaults.single.subjectiveChange);
+  Object.entries(defaults.selected).forEach(([label, selected]) => {
+    if (selected) parts.push(label);
+  });
+  Object.entries(defaults.sided).forEach(([label, side]) => {
+    if (side) parts.push(`${label} ${side}`);
+  });
+  return parts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(", ");
+}
+
+function saveInitial(statusMessage = "Initial visit saved.", requireDoctor = false) {
+  if (requireDoctor && !validateDoctor()) return;
   const record = noteData();
   const records = savedInitials().filter((item) => item.id !== record.id);
   writeInitials([record, ...records]);
   saveProfile(record);
   if (statusMessage) setStatus(statusMessage);
+}
+
+function validateDoctor() {
+  const doctor = $("#doctor");
+  if (doctor.value.trim()) return true;
+  doctor.focus();
+  setStatus("Doctor required before leaving or saving this initial visit.");
+  return false;
+}
+
+function autosaveBeforeLeave() {
+  if (!$("#doctor").value.trim()) return;
+  saveInitial("");
 }
 
 function scheduleAutosave() {
@@ -457,6 +551,7 @@ function setInitialDefaults() {
 }
 
 function exportInitial() {
+  if (!validateDoctor()) return;
   const record = noteData();
   saveProfile(record);
   const blob = new Blob([record.summary], { type: "text/plain;charset=utf-8" });
@@ -470,6 +565,7 @@ function exportInitial() {
 }
 
 function printInitial() {
+  if (!validateDoctor()) return;
   window.print();
 }
 
@@ -558,7 +654,7 @@ function bindFields() {
 }
 
 function bindActions() {
-  $("#saveInitial").addEventListener("click", () => saveInitial("Initial visit saved."));
+  $("#saveInitial").addEventListener("click", () => saveInitial("Initial visit saved.", true));
   $("#exportInitial").addEventListener("click", exportInitial);
   $("#printInitial").addEventListener("click", printInitial);
   $("#copyInitial").addEventListener("click", async () => {
@@ -566,10 +662,26 @@ function bindActions() {
     setStatus("Initial note copied.");
   });
   $("#clearInitial").addEventListener("click", clearSaved);
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[href]");
+    if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
+    if (!validateDoctor()) {
+      event.preventDefault();
+      return;
+    }
+    autosaveBeforeLeave();
+  });
+  window.addEventListener("pagehide", autosaveBeforeLeave);
+  window.addEventListener("beforeunload", (event) => {
+    if ($("#doctor").value.trim()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
 }
 
 mountLevels();
 mountXrayAreas();
+mountChiefComplaintButtons();
 bindChoiceGroups();
 bindFields();
 bindActions();

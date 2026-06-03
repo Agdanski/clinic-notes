@@ -360,7 +360,9 @@ function renderPatientSearchResults() {
 
 function fullPatientName(patient) {
   const full = [patient.firstName, patient.middleName, patient.lastName].map((part) => String(part || "").trim()).filter(Boolean).join(" ");
-  return full || String(patient.patientName || patient.preferredName || "").trim();
+  const preferred = String(patient.preferredName || "").trim();
+  if (full && preferred) return `${full} '${preferred}'`;
+  return full || String(patient.patientName || preferred || "").trim();
 }
 
 async function reserveManualPatientId() {

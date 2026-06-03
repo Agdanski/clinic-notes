@@ -311,6 +311,24 @@ function saveConsent(statusMessage = "Consent saved.", requireComplete = true) {
   return true;
 }
 
+function validateDoctorCompletion() {
+  if (!$("#chiropractorName").value.trim()) {
+    $("#chiropractorName").focus();
+    setStatus("Chiropractor name required before leaving this consent.");
+    return false;
+  }
+  if (signatureIsBlank($("#doctorSignature"))) {
+    setStatus("Chiropractor signature required before leaving this consent.");
+    return false;
+  }
+  return true;
+}
+
+function autosaveBeforeLeave() {
+  if (!validateDoctorCompletion()) return;
+  saveConsent("", false);
+}
+
 function scheduleAutosave() {
   if (!state.autosaveReady) return;
   window.clearTimeout(autosaveTimer);
@@ -408,6 +426,23 @@ function bindActions() {
   $("#clearConsent").addEventListener("click", clearSavedConsent);
   $("#clearPatientSignature").addEventListener("click", () => clearSignature($("#patientSignature"), "patientSignatureDirty"));
   $("#clearDoctorSignature").addEventListener("click", () => clearSignature($("#doctorSignature"), "doctorSignatureDirty"));
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[href]");
+    if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
+    if (!validateDoctorCompletion()) {
+      event.preventDefault();
+      return;
+    }
+    autosaveBeforeLeave();
+  });
+  window.addEventListener("pagehide", () => {
+    if ($("#chiropractorName").value.trim() && !signatureIsBlank($("#doctorSignature"))) saveConsent("", false);
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if ($("#chiropractorName").value.trim() && !signatureIsBlank($("#doctorSignature"))) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
 }
 
 function init() {

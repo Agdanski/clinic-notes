@@ -581,8 +581,10 @@ function patientDisplayName(data) {
   const firstName = String(data.firstName || "").trim();
   const middleName = String(data.middleName || "").trim();
   const lastName = String(data.lastName || "").trim();
+  const preferredName = String(data.preferredName || "").trim();
   const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ").trim();
-  return String(data.patientName || fullName || data.preferredName || data.janePatientNumber || "").trim();
+  if (fullName && preferredName) return `${fullName} '${preferredName}'`;
+  return String(data.patientName || fullName || preferredName || data.janePatientNumber || "").trim();
 }
 
 function profileKeyForPatient(data) {

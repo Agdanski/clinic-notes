@@ -527,6 +527,19 @@ function saveExam(statusMessage = "Exam saved.") {
   if (statusMessage) setStatus(statusMessage);
 }
 
+function validateDoctor() {
+  const doctor = document.getElementsByName("doctor")[0];
+  if (doctor?.value?.trim()) return true;
+  doctor?.focus();
+  setStatus("Doctor required before leaving or saving this exam.");
+  return false;
+}
+
+function autosaveBeforeLeave() {
+  if (!document.getElementsByName("doctor")[0]?.value?.trim()) return;
+  saveExam("");
+}
+
 function scheduleAutosave() {
   if (!state.autosaveReady) return;
   window.clearTimeout(autosaveTimer);
@@ -641,6 +654,7 @@ function bindSteppers() {
 }
 
 function exportExam() {
+  if (!validateDoctor()) return;
   const record = noteData();
   saveProfile(record);
   const blob = new Blob([record.summary], { type: "text/plain;charset=utf-8" });
@@ -660,9 +674,15 @@ function clearSaved() {
 }
 
 function bindActions() {
-  $("#saveExam").addEventListener("click", () => saveExam("Exam saved."));
+  $("#saveExam").addEventListener("click", () => {
+    if (!validateDoctor()) return;
+    saveExam("Exam saved.");
+  });
   $("#exportExam").addEventListener("click", exportExam);
-  $("#printExam").addEventListener("click", () => window.print());
+  $("#printExam").addEventListener("click", () => {
+    if (!validateDoctor()) return;
+    window.print();
+  });
   $("#allNeuroNormal").addEventListener("click", () => {
     setAllDtrMotorSensationNormal();
     render();
@@ -678,6 +698,40 @@ function bindActions() {
     setStatus("Exam copied.");
   });
   $("#clearExam").addEventListener("click", clearSaved);
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[href]");
+    if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
+    if (!validateDoctor()) {
+      event.preventDefault();
+      return;
+    }
+    autosaveBeforeLeave();
+  });
+  window.addEventListener("pagehide", autosaveBeforeLeave);
+  window.addEventListener("beforeunload", (event) => {
+    if (document.getElementsByName("doctor")[0]?.value?.trim()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+}
+
+function setupCollapsibleSections() {
+  const collapsibleTitles = new Set(["Myopathology", "DTR / Motor / Sensation", "Neurological Assessment"]);
+  $$(".exam-section").forEach((section) => {
+    const title = section.querySelector(".section-head h2")?.textContent?.trim();
+    if (!collapsibleTitles.has(title)) return;
+    const head = section.querySelector(".section-head");
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "collapse-toggle";
+    toggle.textContent = "Open";
+    section.classList.add("is-collapsed");
+    toggle.addEventListener("click", () => {
+      const collapsed = section.classList.toggle("is-collapsed");
+      toggle.textContent = collapsed ? "Open" : "Close";
+    });
+    head.appendChild(toggle);
+  });
 }
 
 function setAllDtrMotorSensationNormal() {
@@ -713,6 +767,7 @@ bindChoiceGroups();
 bindFields();
 bindSteppers();
 bindActions();
+setupCollapsibleSections();
 setDefaults();
 loadRequestedExam();
 render();

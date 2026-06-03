@@ -78,6 +78,15 @@
   padding: 0 10px;
 }
 
+.collapse-toggle {
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.exam-section.is-collapsed > :not(.section-head) {
+  display: none;
+}
+
 .scale-legend {
   margin-bottom: 10px;
   padding: 8px;

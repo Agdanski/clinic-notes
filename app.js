@@ -32,6 +32,7 @@ const state = {
   visitLevels: new Set(),
   levelFindings: {},
   currentDraftId: null,
+  profileSubjectiveDefaultsApplied: false,
   autosaveReady: false
 };
 
@@ -99,6 +100,7 @@ const orthoItems = [
   ["Heel to buttock", "orthoSided"], ["SLR", "orthoSided"], ["Yoman's", "orthoSided"],
   ["Valsalva's", "orthoResult"], ["Kemp's", "orthoSided"]
 ];
+const profileAlertLabels = new Set(["NO NECK", "NOT NECK", "SOFT TISSUE ONLY", "VERY GENTLE"]);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -623,6 +625,7 @@ function renderPriorReference() {
   }
   target.textContent = [
     `Visit #${prior.visitNumber || ""}`,
+    priorLine("S", prior.sText),
     priorLine("O", prior.oText),
     priorLine("O detail", prior.oDetailText),
     priorLine("Orthos", prior.orthosText),
@@ -808,7 +811,7 @@ function loadNote(note) {
   $("#visitNumber").value = note.visitNumber || 2;
   $("#freeNote").value = note.freeNote || "";
   $("#dcNote").value = note.dcNote || "";
-  $("#importantNotes").value = note.importantNotes || "";
+  $("#importantNotes").value = filterProfileAlertNotes(note.importantNotes || "");
   state.selected = note.selected || {};
   state.sided = note.sided || {};
   state.severity = note.severity || {};
@@ -817,6 +820,7 @@ function loadNote(note) {
   state.visitLevels = new Set(note.visitLevels || []);
   state.levelFindings = note.levelFindings || {};
   state.currentDraftId = note.id || `draft-${Date.now()}`;
+  state.profileSubjectiveDefaultsApplied = true;
   renderAll();
   setStatus("Draft loaded.");
 }
@@ -864,13 +868,38 @@ function applyPatientProfile() {
   if (Array.isArray(profile.subluxations)) {
     patientDefaults.initialLevels = profile.subluxations;
   }
-  if (profile.neckAdjustment === "N") state.profileAlerts.push("NO NECK");
-  if (profile.softTissueOnly === "Yes") state.profileAlerts.push("SOFT TISSUE ONLY");
-  if (profile.intensity === "Very gentle") state.profileAlerts.push("VERY GENTLE");
-  const profileImportantNotes = String(profile.importantNotes || state.profileAlerts.join("\n")).trim();
+  if (profile.neckAdjustment === "N") state.profileAlerts.push("not neck");
+  if (profile.softTissueOnly === "Yes") state.profileAlerts.push("soft tissue only");
+  if (profile.intensity === "Very gentle") state.profileAlerts.push("very gentle");
+  applyProfileSubjectiveDefaults(profile);
+  const profileImportantNotes = filterProfileAlertNotes(profile.importantNotes || "");
   if (profileImportantNotes && !importantNotes.value.trim()) {
     importantNotes.value = profileImportantNotes;
   }
+}
+
+function filterProfileAlertNotes(value) {
+  return String(value || "")
+    .split(/\r?\n|;/)
+    .map((line) => line.trim())
+    .filter((line) => line && !profileAlertLabels.has(line.toUpperCase()))
+    .join("\n");
+}
+
+function applyProfileSubjectiveDefaults(profile) {
+  if (state.currentDraftId) return;
+  if (state.profileSubjectiveDefaultsApplied) return;
+  const defaults = profile.subjectiveDefaults || {};
+  if (defaults.single?.subjectiveChange && !state.single.subjectiveChange) {
+    state.single.subjectiveChange = defaults.single.subjectiveChange;
+  }
+  Object.entries(defaults.selected || {}).forEach(([label, selected]) => {
+    if (selected) state.selected[makeKey("S", label)] = true;
+  });
+  Object.entries(defaults.sided || {}).forEach(([label, side]) => {
+    if (side) state.sided[makeKey("S", label)] = side;
+  });
+  state.profileSubjectiveDefaultsApplied = true;
 }
 
 function renderPatientAlerts() {
@@ -1154,13 +1183,36 @@ function saveDraft() {
   if (!validateVisitNumber()) return;
   if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
+  if (!validateDoctor()) return;
   persistDraft(window.ClinicServer ? "Draft saved to the clinic server." : "Draft saved on this device.");
+}
+
+function validateDoctor() {
+  if ($("#doctor").value.trim()) return true;
+  $("#doctor").focus();
+  setStatus("Doctor of record required before leaving or saving this SOAP note.");
+  return false;
+}
+
+function canLeavePage() {
+  if (!validateDoctor()) return false;
+  if (!validateVisitNumber()) return false;
+  if (!validateReexamAt()) return false;
+  if (!validateDcNote()) return false;
+  return true;
+}
+
+function autosaveBeforeLeave() {
+  if (!noteHasMeaningfulContent()) return;
+  if (manualVisitNumberRequired() || !reexamAtIsValid() || !$("#doctor").value.trim()) return;
+  persistDraft("");
 }
 
 function exportNote() {
   if (!validateVisitNumber()) return;
   if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
+  if (!validateDoctor()) return;
   const draft = noteData();
   const text = buildSummary();
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
@@ -1177,6 +1229,7 @@ function printNote() {
   if (!validateVisitNumber()) return;
   if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
+  if (!validateDoctor()) return;
   window.print();
 }
 
@@ -1195,7 +1248,7 @@ function resetNote() {
   $("#visitNumber").value = 2;
   $("#freeNote").value = "";
   $("#dcNote").value = "";
-  $("#importantNotes").value = carryForward?.importantNotes || "";
+  $("#importantNotes").value = filterProfileAlertNotes(carryForward?.importantNotes || "");
   state.selected = {};
   state.sided = {};
   state.severity = {};
@@ -1206,6 +1259,7 @@ function resetNote() {
   state.visitLevels = new Set();
   state.levelFindings = {};
   state.currentDraftId = null;
+  state.profileSubjectiveDefaultsApplied = false;
   renderAll();
 }
 
@@ -1235,6 +1289,21 @@ function bindEvents() {
     localStorage.removeItem(STORAGE_KEY);
     renderDrafts();
     setStatus("Drafts cleared.");
+  });
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[href]");
+    if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
+    if (!canLeavePage()) {
+      event.preventDefault();
+      return;
+    }
+    autosaveBeforeLeave();
+  });
+  window.addEventListener("pagehide", autosaveBeforeLeave);
+  window.addEventListener("beforeunload", (event) => {
+    if ($("#doctor").value.trim()) return;
+    event.preventDefault();
+    event.returnValue = "";
   });
 }
 
