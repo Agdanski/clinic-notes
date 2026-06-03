@@ -8,6 +8,13 @@
   gap: 12px;
 }
 
+.dashboard-home {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(300px, 1fr) minmax(320px, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .report-sheet {
   margin-top: 12px;
 }
@@ -36,6 +43,66 @@
   min-height: 120px;
 }
 
+.patient-search-results {
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.patient-search-results button {
+  justify-content: flex-start;
+  min-height: 44px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.patient-result-main {
+  display: block;
+  font-weight: 900;
+}
+
+.patient-result-meta,
+.selected-patient-card p {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.selected-patient-card {
+  min-height: 94px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.selected-patient-card h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.selected-patient-card dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.selected-patient-card dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.selected-patient-card dd {
+  margin: 0;
+}
+
+.patient-file-actions .button-link {
+  flex: 1 1 86px;
+}
+
 .report-list {
   display: grid;
   gap: 8px;
@@ -60,6 +127,7 @@
 }
 
 @media (max-width: 980px) {
+  .dashboard-home,
   .dashboard-grid {
     grid-template-columns: 1fr;
   }

@@ -60,6 +60,8 @@ const janePreviousItems = [
 
 const $ = (selector) => document.querySelector(selector);
 let lastMappedConsent = null;
+let selectedPatient = null;
+let patientDirectory = [];
 
 function setStatus(message) {
   $("#statusLine").textContent = message;
@@ -75,6 +77,31 @@ function readJson(key, fallback) {
 
 function writeJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+async function syncStorageKeyToServer(key) {
+  if (!window.ClinicServer) return;
+  const value = localStorage.getItem(key) || "";
+  const response = await fetch(`/api/storage/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ value })
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "Could not save to the clinic server.");
+  }
+}
+
+async function refreshServerStorage() {
+  if (!window.ClinicServer) return {};
+  const response = await fetch("/api/storage", { credentials: "same-origin" });
+  if (!response.ok) return {};
+  const data = await response.json().catch(() => ({}));
+  const storage = data.storage || {};
+  Object.entries(storage).forEach(([key, value]) => localStorage.setItem(key, value));
+  return storage;
 }
 
 function escapeRegex(value) {
@@ -102,6 +129,16 @@ function slug(name) {
   return patientKey(name).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "patient";
 }
 
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
 function calculateAge(dobValue) {
   if (!dobValue) return "";
   const dob = new Date(`${dobValue}T00:00:00`);
@@ -111,6 +148,200 @@ function calculateAge(dobValue) {
   const birthdayThisYear = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
   if (today < birthdayThisYear) age -= 1;
   return age >= 0 ? String(age) : "";
+}
+
+function displayAge(patient) {
+  return calculateAge(patient?.dob) || patient?.patientAge || "";
+}
+
+function patientProfileList() {
+  const profiles = readJson(PROFILE_STORAGE_KEY, {});
+  return Object.entries(profiles)
+    .map(([key, profile]) => ({
+      key,
+      patientKey: key,
+      patientId: profile?.patientId || "",
+      patientName: profile?.patientName || key,
+      dob: profile?.dob || "",
+      patientAge: displayAge(profile),
+      source: "profile"
+    }))
+    .filter((patient) => patient.patientName);
+}
+
+async function loadServerPatientList() {
+  if (!window.ClinicServer) return [];
+  const response = await fetch("/api/patients", { credentials: "same-origin" });
+  if (!response.ok) return [];
+  const data = await response.json().catch(() => ({}));
+  return (data.patients || []).map((patient) => ({
+    patientKey: patient.patient_key || patientKey(patient.patient_name),
+    patientId: patient.patient_id || "",
+    patientName: patient.patient_name || "",
+    dob: "",
+    patientAge: "",
+    source: "server"
+  }));
+}
+
+function mergePatients(profilePatients, serverPatients) {
+  const merged = new Map();
+  [...profilePatients, ...serverPatients].forEach((patient) => {
+    const key = patientKey(patient.patientName || patient.patientKey);
+    if (!key) return;
+    const prior = merged.get(key) || {};
+    merged.set(key, {
+      ...prior,
+      ...patient,
+      dob: prior.dob || patient.dob || "",
+      patientAge: prior.patientAge || patient.patientAge || "",
+      patientId: patient.patientId || prior.patientId || ""
+    });
+  });
+  return [...merged.values()].sort((a, b) => a.patientName.localeCompare(b.patientName));
+}
+
+async function loadPatientDirectory() {
+  const profilePatients = patientProfileList();
+  const serverPatients = await loadServerPatientList();
+  patientDirectory = mergePatients(profilePatients, serverPatients);
+  renderPatientSearchResults();
+  if (selectedPatient) {
+    const match = patientDirectory.find((patient) => patientKey(patient.patientName) === patientKey(selectedPatient.patientName));
+    if (match) selectPatient(match, { silent: true });
+  }
+}
+
+function patientFileUrl(page, patient) {
+  const name = patient?.patientName || $("#patientName")?.value?.trim() || "";
+  return name ? `${page}?patient=${encodeURIComponent(name)}` : page;
+}
+
+function updatePatientFileLinks() {
+  const patient = selectedPatient || { patientName: $("#patientName")?.value?.trim() || "" };
+  const links = [
+    ["fileInitial", "initial.html"],
+    ["fileConsent", "consent.html"],
+    ["fileExam", "exam.html"],
+    ["fileSoap", "index.html"]
+  ];
+  links.forEach(([id, page]) => {
+    const link = document.getElementById(id);
+    if (link) link.href = patientFileUrl(page, patient);
+  });
+}
+
+function renderSelectedPatient() {
+  const card = $("#selectedPatientCard");
+  const status = $("#selectedPatientStatus");
+  if (!card || !status) return;
+  if (!selectedPatient) {
+    status.textContent = "No patient selected";
+    card.innerHTML = "<p>Search for a patient or create a new patient to open their file.</p>";
+    updatePatientFileLinks();
+    return;
+  }
+  status.textContent = selectedPatient.patientId || "Patient ID pending";
+  const age = displayAge(selectedPatient) || "Not documented";
+  card.innerHTML = `
+    <h3>${escapeHtml(selectedPatient.patientName)}</h3>
+    <dl>
+      <dt>ID</dt><dd>${escapeHtml(selectedPatient.patientId || "Assigned after server save")}</dd>
+      <dt>DOB</dt><dd>${escapeHtml(selectedPatient.dob || "Not documented")}</dd>
+      <dt>Age</dt><dd>${escapeHtml(age)}</dd>
+    </dl>
+  `;
+  updatePatientFileLinks();
+}
+
+function selectPatient(patient, options = {}) {
+  selectedPatient = {
+    patientName: patient.patientName || "",
+    patientId: patient.patientId || "",
+    dob: patient.dob || "",
+    patientAge: displayAge(patient)
+  };
+  if ($("#patientName")) $("#patientName").value = selectedPatient.patientName;
+  if ($("#dob") && selectedPatient.dob) $("#dob").value = selectedPatient.dob;
+  if ($("#patientAge")) $("#patientAge").value = selectedPatient.patientAge;
+  updateLinks();
+  renderSelectedPatient();
+  if (!options.silent) setStatus(`Opened patient file: ${selectedPatient.patientName}`);
+}
+
+function renderPatientSearchResults() {
+  const mount = $("#patientSearchResults");
+  if (!mount) return;
+  const query = patientKey($("#patientSearch")?.value || "");
+  mount.innerHTML = "";
+  if (!query) {
+    mount.innerHTML = patientDirectory.length
+      ? "<p class=\"patient-result-meta\">Type a name or patient ID to search.</p>"
+      : "<p class=\"patient-result-meta\">No patients found yet.</p>";
+    return;
+  }
+  const matches = patientDirectory
+    .filter((patient) => {
+      const id = String(patient.patientId || "").toLowerCase();
+      return patientKey(patient.patientName).includes(query) || id.includes(query);
+    })
+    .slice(0, 12);
+  if (!matches.length) {
+    mount.innerHTML = "<p class=\"patient-result-meta\">No matching patient found.</p>";
+    return;
+  }
+  matches.forEach((patient) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    const age = displayAge(patient);
+    button.innerHTML = `
+      <span>
+        <span class="patient-result-main">${escapeHtml(patient.patientName)}</span>
+        <span class="patient-result-meta">${escapeHtml([patient.patientId, patient.dob, age ? `Age ${age}` : ""].filter(Boolean).join(" | "))}</span>
+      </span>
+    `;
+    button.addEventListener("click", () => selectPatient(patient));
+    mount.appendChild(button);
+  });
+}
+
+async function createManualPatient() {
+  const name = $("#manualPatientName").value.trim();
+  const dob = $("#manualDob").value;
+  const age = calculateAge(dob);
+  const status = $("#manualPatientStatus");
+  if (!name) {
+    status.textContent = "Patient name is required.";
+    return;
+  }
+  const profiles = readJson(PROFILE_STORAGE_KEY, {});
+  const key = patientKey(name);
+  profiles[key] = {
+    ...(profiles[key] || {}),
+    patientName: name,
+    dob,
+    patientAge: age,
+    createdManuallyAt: profiles[key]?.createdManuallyAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  writeJson(PROFILE_STORAGE_KEY, profiles);
+  status.textContent = window.ClinicServer ? "Creating patient on server." : "Patient created in this browser.";
+  try {
+    await syncStorageKeyToServer(PROFILE_STORAGE_KEY);
+    await refreshServerStorage();
+    await loadPatientDirectory();
+    const created = patientDirectory.find((patient) => patientKey(patient.patientName) === patientKey(name)) || profiles[key];
+    selectPatient(created, { silent: true });
+    status.textContent = selectedPatient.patientId
+      ? `Patient created: ${selectedPatient.patientId}`
+      : "Patient created. ID will appear after the server refreshes.";
+    $("#manualPatientName").value = "";
+    $("#manualDob").value = "";
+    $("#manualPatientAge").value = "";
+  } catch (error) {
+    console.error(error);
+    status.textContent = error.message;
+  }
 }
 
 function parseDate(value) {
@@ -904,14 +1135,14 @@ function writePreview(data) {
   updateLinks();
 }
 
-function applyImport() {
+async function applyImport() {
   const data = previewData();
   if (!data.patientName) {
     setStatus("Patient name is required before applying.");
     return;
   }
   if ($("#formType").value === "janeConsent") {
-    applyConsentImport(data);
+    await applyConsentImport(data);
     return;
   }
   const record = initialRecord(data);
@@ -936,11 +1167,20 @@ function applyImport() {
     updatedAt: new Date().toISOString()
   };
   writeJson(PROFILE_STORAGE_KEY, profiles);
+  try {
+    await syncStorageKeyToServer(PROFILE_STORAGE_KEY);
+    await refreshServerStorage();
+    await loadPatientDirectory();
+    const imported = patientDirectory.find((patient) => patientKey(patient.patientName) === patientKey(data.patientName));
+    if (imported) selectPatient(imported, { silent: true });
+  } catch (error) {
+    console.error(error);
+  }
   updateLinks();
   setStatus(window.ClinicServer ? "Imported to the clinic server. Open Initial, Consent, Exam, or SOAP to review." : "Imported into this browser. Open Initial, Consent, Exam, or SOAP to review.");
 }
 
-function applyConsentImport(data) {
+async function applyConsentImport(data) {
   const record = consentRecord({
     ...data,
     consentAccepted: lastMappedConsent?.consentAccepted,
@@ -963,6 +1203,15 @@ function applyConsentImport(data) {
     consentUpdatedAt: record.updatedAt
   };
   writeJson(PROFILE_STORAGE_KEY, profiles);
+  try {
+    await syncStorageKeyToServer(PROFILE_STORAGE_KEY);
+    await refreshServerStorage();
+    await loadPatientDirectory();
+    const imported = patientDirectory.find((patient) => patientKey(patient.patientName) === patientKey(data.patientName));
+    if (imported) selectPatient(imported, { silent: true });
+  } catch (error) {
+    console.error(error);
+  }
   updateLinks();
   setStatus("Jane consent imported. Open Consent for chiropractor review/signature.");
 }
@@ -973,6 +1222,7 @@ function updateLinks() {
   $("#openConsent").href = patient ? `consent.html?patient=${patient}` : "consent.html";
   $("#openExam").href = patient ? `exam.html?patient=${patient}` : "exam.html";
   $("#openSoap").href = patient ? `index.html?patient=${patient}` : "index.html";
+  updatePatientFileLinks();
   renderReportList();
 }
 
@@ -1259,6 +1509,11 @@ $("#parseText").addEventListener("click", parseText);
 $("#applyImport").addEventListener("click", applyImport);
 $("#extractReport").addEventListener("click", extractDiagnosticReport);
 $("#applyReport").addEventListener("click", applyDiagnosticReport);
+$("#createManualPatient").addEventListener("click", createManualPatient);
+$("#manualDob").addEventListener("input", () => {
+  $("#manualPatientAge").value = calculateAge($("#manualDob").value);
+});
+$("#patientSearch").addEventListener("input", renderPatientSearchResults);
 $("#dob").addEventListener("input", () => {
   $("#patientAge").value = calculateAge($("#dob").value);
   updateLinks();
@@ -1272,3 +1527,5 @@ $("#dob").addEventListener("input", () => {
   document.getElementById(id).addEventListener("change", renderReportList);
 });
 updateLinks();
+renderSelectedPatient();
+loadPatientDirectory();
