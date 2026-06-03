@@ -108,6 +108,10 @@
             <span>DC comments</span>
             <textarea name="dcComments" rows="4"></textarea>
           </label>
+          <label class="wide">
+            <span>Important notes</span>
+            <textarea name="importantNotes" rows="4" placeholder="Carries to SOAP important notes"></textarea>
+          </label>
         </div>
       </section>
 
@@ -248,6 +252,21 @@
                 <button type="button" data-value="Y">Y</button>
                 <button type="button" data-value="N">N</button>
                 <button type="button" data-value="N/A">N/A</button>
+              </span>
+            </label>
+            <label>
+              <span>Ant</span>
+              <span class="choice-group inline" data-group="antAdjustment">
+                <button type="button" data-value="Y">Y</button>
+                <button type="button" data-value="N">N</button>
+              </span>
+            </label>
+            <label id="antAreaWrap">
+              <span>Ant area</span>
+              <span class="choice-group inline multi" data-group="antAreas">
+                <button type="button" data-value="upper">Upper</button>
+                <button type="button" data-value="middle">Middle</button>
+                <button type="button" data-value="lower">Lower</button>
               </span>
             </label>
             <label>

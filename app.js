@@ -1,6 +1,7 @@
 const STORAGE_KEY = "clinic-repeat-soap-drafts-v2";
 const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
 const EXAM_STORAGE_KEY = "clinic-vsc-exam-records-v1";
+const INITIAL_STORAGE_KEY = "clinic-initial-visit-records-v1";
 
 const patientDefaults = {
   patientName: "",
@@ -1252,6 +1253,22 @@ function savedProfiles() {
   }
 }
 
+function writeProfiles(profiles) {
+  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
+}
+
+function savedInitials() {
+  try {
+    return JSON.parse(localStorage.getItem(INITIAL_STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeInitials(records) {
+  localStorage.setItem(INITIAL_STORAGE_KEY, JSON.stringify(records.slice(0, 50)));
+}
+
 function currentPatientProfile() {
   const patient = currentPatientName();
   if (!patient) return null;
@@ -1287,7 +1304,7 @@ function applyPatientProfile() {
   }
   applyProfileSubjectiveDefaults(profile);
   const profileImportantNotes = profileDefaultImportantNotes(profile);
-  if (profileImportantNotes && !state.importantNotesCarriedFromSoap && !state.profileImportantNotesApplied) {
+  if (profileImportantNotes && !state.profileImportantNotesApplied) {
     importantNotes.value = mergeImportantNotes(importantNotes.value, profileImportantNotes);
     state.profileImportantNotesApplied = true;
   }
@@ -1320,15 +1337,17 @@ function uniqueNoteLines(lines) {
 
 function isDefaultImportantNoteLine(line) {
   return /^ltd click\b/i.test(line) ||
+    /^ant -\b/i.test(line) ||
     /^(v\.gen|gen|heavy|ST only)$/i.test(line) ||
     /^[RLB] fig 4\+$/i.test(line);
 }
 
 function fig4ImportantNotes(profile) {
+  const suppressed = new Set((profile?.suppressedImportantNotes || []).map((line) => String(line).toLowerCase()));
   const findings = Array.isArray(profile?.examFig4Findings) ? profile.examFig4Findings : [];
-  if (findings.length) return findings;
+  if (findings.length) return findings.filter((line) => !suppressed.has(String(line).toLowerCase()));
   const latestExam = currentPatientExamRecord();
-  return Array.isArray(latestExam?.examFig4Findings) ? latestExam.examFig4Findings : [];
+  return Array.isArray(latestExam?.examFig4Findings) ? latestExam.examFig4Findings.filter((line) => !suppressed.has(String(line).toLowerCase())) : [];
 }
 
 function profileDefaultImportantNotes(profile) {
@@ -1343,6 +1362,41 @@ function mergeImportantNotes(existing, defaults) {
     ...noteLines(filterProfileAlertNotes(existing || "")).filter((line) => !isDefaultImportantNoteLine(line)),
     ...noteLines(defaults)
   ]).join("\n");
+}
+
+function syncSoapImportantNotesToProfile(draft) {
+  const profileKey = draftPatientKey(draft);
+  if (!profileKey) return;
+  const importantNotes = filterProfileAlertNotes(draft.importantNotes || "");
+  const noteSet = new Set(noteLines(importantNotes).map((line) => line.toLowerCase()));
+  const profiles = savedProfiles();
+  const existing = profiles[profileKey] || {};
+  const autoLines = uniqueNoteLines([
+    ...(Array.isArray(existing.importantNotesAutoLines) ? existing.importantNotesAutoLines : []),
+    ...(Array.isArray(existing.examFig4Findings) ? existing.examFig4Findings : [])
+  ]);
+  profiles[profileKey] = {
+    ...existing,
+    patientName: draft.patientName || existing.patientName || "",
+    patientId: draft.patientId || existing.patientId || "",
+    importantNotes,
+    suppressedImportantNotes: autoLines.filter((line) => !noteSet.has(String(line).toLowerCase())),
+    updatedAt: new Date().toISOString()
+  };
+  writeProfiles(profiles);
+
+  const initials = savedInitials();
+  let changed = false;
+  const updatedInitials = initials.map((record) => {
+    if (String(record?.fields?.patientName || "").trim().toLowerCase() !== profileKey) return record;
+    changed = true;
+    return {
+      ...record,
+      fields: { ...(record.fields || {}), importantNotes },
+      updatedAt: profiles[profileKey].updatedAt
+    };
+  });
+  if (changed) writeInitials(updatedInitials);
 }
 
 function applyProfileSubjectiveDefaults(profile) {
@@ -1429,6 +1483,7 @@ function persistDraft(statusMessage) {
   state.currentDraftId = draft.id;
   const drafts = savedDrafts().filter((item) => item.id !== draft.id && !samePatientVisit(item, draft));
   writeDrafts([draft, ...drafts]);
+  syncSoapImportantNotesToProfile(draft);
   renderDrafts();
   if (statusMessage) setStatus(statusMessage);
 }
@@ -1728,7 +1783,7 @@ function resetNote() {
   $("#dcNote").value = "";
   $("#importantNotes").value = filterProfileAlertNotes(carryForward?.importantNotes || "");
   state.importantNotesCarriedFromSoap = Boolean(carryForward);
-  state.profileImportantNotesApplied = Boolean(carryForward);
+  state.profileImportantNotesApplied = false;
   state.selected = {};
   state.sided = {};
   state.severity = {};

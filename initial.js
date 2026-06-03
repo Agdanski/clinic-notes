@@ -109,12 +109,34 @@ function applyProfileToInitial() {
   if (!profile) return;
   if (profile.patientName && !$("#patientName").value) $("#patientName").value = profile.patientName;
   if (profile.dob && !$("#dob").value) $("#dob").value = profile.dob;
+  const importantNotes = document.getElementsByName("importantNotes")[0];
+  if (importantNotes && profile.importantNotes !== undefined) importantNotes.value = profile.importantNotes || "";
   updateAge();
   updatePatientNavLinks();
+  renderChoices();
 }
 
 function writeProfiles(profiles) {
   localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
+}
+
+function clearSuppressedImportantNotesMatching(matches) {
+  const key = patientKey($("#patientName")?.value);
+  if (!key) return;
+  const profiles = savedProfiles();
+  const profile = profiles[key];
+  if (!profile || !Array.isArray(profile.suppressedImportantNotes)) return;
+  const remaining = profile.suppressedImportantNotes.filter((line) => !matches(String(line || "")));
+  if (remaining.length === profile.suppressedImportantNotes.length) return;
+  profiles[key] = { ...profile, suppressedImportantNotes: remaining };
+  writeProfiles(profiles);
+}
+
+function clearGeneratedSuppressionFor(key) {
+  if (key === "antAdjustment" || key === "antAreas") clearSuppressedImportantNotesMatching((line) => /^ant -\b/i.test(line));
+  if (key === "ltdClick" || key === "ltdClickAreas") clearSuppressedImportantNotesMatching((line) => /^ltd click\b/i.test(line));
+  if (key === "intensity") clearSuppressedImportantNotesMatching((line) => /^(v\.gen|gen|heavy)$/i.test(line));
+  if (key === "softTissueOnly") clearSuppressedImportantNotesMatching((line) => /^ST only$/i.test(line));
 }
 
 function mountLevels() {
@@ -214,6 +236,8 @@ function bindChoiceGroups() {
       }
       if (key === "neckAdj") normalizeNeckSetup();
       if (key === "ltdClick") normalizeLimitedClick();
+      if (key === "antAdjustment") normalizeAntAdjustment();
+      clearGeneratedSuppressionFor(key);
       renderChoices();
       scheduleAutosave();
     });
@@ -247,6 +271,10 @@ function normalizeLimitedClick() {
   if (state.choices.ltdClick !== "Y") delete state.choices.ltdClickAreas;
 }
 
+function normalizeAntAdjustment() {
+  if (state.choices.antAdjustment !== "Y") delete state.choices.antAreas;
+}
+
 function renderChoices() {
   $$(".choice-group").forEach((group) => {
     const key = group.dataset.group;
@@ -260,6 +288,7 @@ function renderChoices() {
   });
   renderConditionalFields();
   renderChiefComplaintButtons();
+  syncImportantNotesFieldWithGenerated();
   $("#summaryText").textContent = buildSummary();
 }
 
@@ -286,6 +315,7 @@ function renderConditionalFields() {
   $("#neckSetupWrap").hidden = state.choices.neckAdj !== "Y";
   $("#neckMobWrap").hidden = state.choices.neckAdj !== "N";
   $("#ltdClickAreasWrap").hidden = state.choices.ltdClick !== "Y";
+  $("#antAreaWrap").hidden = state.choices.antAdjustment !== "Y";
   $("#rmtWhoWrap").hidden = state.choices.rmt !== "Y";
   $("#acuWhoWrap").hidden = state.choices.acu !== "Y";
 }
@@ -336,10 +366,35 @@ function profileContraindications(fields) {
   ].filter(Boolean).join("; ");
 }
 
-function profileImportantNotes() {
+function noteLines(value) {
+  return String(value || "")
+    .split(/\r?\n|;/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function uniqueNoteLines(lines) {
+  const seen = new Set();
+  return lines.filter((line) => {
+    const key = line.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isInitialGeneratedImportantNote(line) {
+  return /^ltd click\b/i.test(line) ||
+    /^ant -\b/i.test(line) ||
+    /^(v\.gen|gen|heavy|ST only)$/i.test(line);
+}
+
+function generatedImportantNoteLines() {
   const lines = [];
   const ltdAreas = Array.isArray(state.choices.ltdClickAreas) ? state.choices.ltdClickAreas : [];
   if (state.choices.ltdClick === "Y" && ltdAreas.length) lines.push(`ltd click ${ltdAreas.join(", ")}`);
+  const antAreas = Array.isArray(state.choices.antAreas) ? state.choices.antAreas : [];
+  if (state.choices.antAdjustment === "Y" && antAreas.length) lines.push(`ant - ${antAreas.join(", ")}`);
   const intensityLabels = {
     "Very gentle": "v.gen",
     Gentle: "gen",
@@ -347,7 +402,27 @@ function profileImportantNotes() {
   };
   if (intensityLabels[state.choices.intensity]) lines.push(intensityLabels[state.choices.intensity]);
   if (state.choices.softTissueOnly === "Yes") lines.push("ST only");
-  return lines.join("\n");
+  const suppressed = new Set((currentPatientProfile()?.suppressedImportantNotes || []).map((line) => String(line).toLowerCase()));
+  return uniqueNoteLines(lines).filter((line) => !suppressed.has(line.toLowerCase()));
+}
+
+function syncImportantNotesFieldWithGenerated() {
+  const field = document.getElementsByName("importantNotes")[0];
+  if (!field) return "";
+  const manual = noteLines(field.value).filter((line) => !isInitialGeneratedImportantNote(line));
+  const merged = uniqueNoteLines([...manual, ...generatedImportantNoteLines()]).join("\n");
+  field.value = merged;
+  return merged;
+}
+
+function profileImportantNotes(fields = fieldsData()) {
+  if (fields.importantNotes !== syncImportantNotesFieldWithGenerated()) {
+    fields.importantNotes = document.getElementsByName("importantNotes")[0]?.value || "";
+  }
+  return uniqueNoteLines([
+    ...noteLines(fields.importantNotes),
+    ...generatedImportantNoteLines()
+  ]).join("\n");
 }
 
 function linesForFields(fields, pairs) {
@@ -380,7 +455,8 @@ function buildSummary() {
     "History And DC Comments",
     ...linesForFields(fields, [
       ["History", "historyNotes"],
-      ["DC comments", "dcComments"]
+      ["DC comments", "dcComments"],
+      ["Important notes", "importantNotes"]
     ]),
     "",
     "Assessment Setup",
@@ -404,6 +480,8 @@ function buildSummary() {
     `Care model: ${choiceText("careModel")}`,
     `Lifetime adjustment: ${choiceText("lifetimeAdj")}`,
     `Wants click: ${choiceText("wantsClick")}`,
+    `Ant: ${choiceText("antAdjustment")}`,
+    `Ant area: ${state.choices.antAdjustment === "Y" ? choiceText("antAreas") : "Not applicable"}`,
     `Ltd click: ${choiceText("ltdClick")}`,
     `Ltd click areas: ${state.choices.ltdClick === "Y" ? choiceText("ltdClickAreas") : "Not applicable"}`,
     `Intensity: ${choiceText("intensity")}`,
@@ -472,13 +550,17 @@ function saveProfile(record) {
     dob: fields.dob,
     patientAge: fields.patientAge,
     contraindications: profileContraindications(fields),
-    importantNotes: profileImportantNotes(),
+    importantNotes: profileImportantNotes(fields),
+    importantNotesAutoLines: generatedImportantNoteLines(),
+    suppressedImportantNotes: [],
     neckAdjustment: state.choices.neckAdj || "",
     neckMob: state.choices.neckMob || "",
     softTissueOnly: state.choices.softTissueOnly || "",
     intensity: state.choices.intensity || "",
     limitedClick: state.choices.ltdClick || "",
     limitedClickAreas: state.choices.ltdClickAreas || [],
+    antAdjustment: state.choices.antAdjustment || "",
+    antAreas: state.choices.antAreas || [],
     familyHistory: state.choices.familyHistory || [],
     strokeRisk: fields.strokeRisk || "",
     subjectiveDefaults: subjectiveDefaults(),
@@ -604,6 +686,7 @@ function loadInitialRecord(record) {
   state.choices = { ...(record.choices || {}) };
   normalizeNeckSetup();
   normalizeLimitedClick();
+  normalizeAntAdjustment();
   updateAge();
   updateOrthoticsRecheck();
   renderChoices();
