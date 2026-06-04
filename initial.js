@@ -21,6 +21,7 @@ const xrayAreas = [
 ];
 const state = {
   choices: {},
+  allowPageNavigation: false,
   autosaveReady: false
 };
 
@@ -102,6 +103,10 @@ function updatePatientNavLinks() {
     const link = document.getElementById(id);
     if (link) link.href = patient ? `${page}?patient=${patient}` : page;
   });
+}
+
+function isPageNavigationLink(link) {
+  return Boolean(link?.classList?.contains("patient-nav-link") || /^nav[A-Z]/.test(link?.id || ""));
 }
 
 function applyProfileToInitial() {
@@ -770,6 +775,10 @@ function bindActions() {
     const link = event.target.closest("a[href]");
     if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
     autosaveBeforeLeave();
+    if (isPageNavigationLink(link)) {
+      state.allowPageNavigation = true;
+      return;
+    }
     if (!validateDoctor()) {
       event.preventDefault();
       return;
@@ -777,6 +786,7 @@ function bindActions() {
   });
   window.addEventListener("pagehide", autosaveBeforeLeave);
   window.addEventListener("beforeunload", (event) => {
+    if (state.allowPageNavigation) return;
     if ($("#doctor").value.trim()) return;
     event.preventDefault();
     event.returnValue = "";

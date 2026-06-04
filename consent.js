@@ -3,6 +3,7 @@ const PROFILE_STORAGE_KEY = "clinic-patient-profiles-v1";
 
 const state = {
   autosaveReady: false,
+  allowPageNavigation: false,
   patientSignatureDirty: false,
   doctorSignatureDirty: false,
   janePatientSignature: false
@@ -81,6 +82,10 @@ function updatePatientNavLinks() {
     const link = document.getElementById(id);
     if (link) link.href = patient ? `${page}?patient=${patient}` : page;
   });
+}
+
+function isPageNavigationLink(link) {
+  return Boolean(link?.classList?.contains("patient-nav-link") || /^nav[A-Z]/.test(link?.id || ""));
 }
 
 function setStatus(message) {
@@ -429,6 +434,11 @@ function bindActions() {
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a[href]");
     if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
+    if (isPageNavigationLink(link)) {
+      state.allowPageNavigation = true;
+      if (fieldsData().patientName) saveConsent("", false);
+      return;
+    }
     if (!validateDoctorCompletion()) {
       event.preventDefault();
       return;
@@ -439,6 +449,7 @@ function bindActions() {
     if ($("#chiropractorName").value.trim() && !signatureIsBlank($("#doctorSignature"))) saveConsent("", false);
   });
   window.addEventListener("beforeunload", (event) => {
+    if (state.allowPageNavigation) return;
     if ($("#chiropractorName").value.trim() && !signatureIsBlank($("#doctorSignature"))) return;
     event.preventDefault();
     event.returnValue = "";
