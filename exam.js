@@ -27,7 +27,6 @@ const orthoResultOptions = ["L +", "L -", "R +", "R -", "Both +", "Both -"];
 
 const state = {
   choices: {},
-  allowPageNavigation: false,
   autosaveReady: false
 };
 
@@ -666,10 +665,6 @@ function updatePatientNavLinks() {
   });
 }
 
-function isPageNavigationLink(link) {
-  return Boolean(link?.classList?.contains("patient-nav-link") || /^nav[A-Z]/.test(link?.id || ""));
-}
-
 function applyPatientProfileToExam() {
   const profile = currentProfileForPatient(document.getElementsByName("patientName")[0].value);
   if (!profile) return;
@@ -897,11 +892,6 @@ function bindActions() {
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a[href]");
     if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
-    if (isPageNavigationLink(link)) {
-      state.allowPageNavigation = true;
-      if (document.getElementsByName("patientName")[0]?.value?.trim()) saveExam("");
-      return;
-    }
     if (!validateDoctor()) {
       event.preventDefault();
       return;
@@ -910,7 +900,6 @@ function bindActions() {
   });
   window.addEventListener("pagehide", autosaveBeforeLeave);
   window.addEventListener("beforeunload", (event) => {
-    if (state.allowPageNavigation) return;
     if (document.getElementsByName("doctor")[0]?.value?.trim()) return;
     event.preventDefault();
     event.returnValue = "";

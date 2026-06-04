@@ -42,7 +42,6 @@ const state = {
   importantNotesCarriedFromSoap: false,
   profileImportantNotesApplied: false,
   profileSubjectiveDefaultsApplied: false,
-  allowPageNavigation: false,
   autosaveReady: false
 };
 
@@ -621,10 +620,6 @@ function updatePatientNavLinks() {
     const link = document.getElementById(id);
     if (link) link.href = patientNavUrl(page);
   });
-}
-
-function isPageNavigationLink(link) {
-  return Boolean(link?.classList?.contains("patient-nav-link") || /^nav[A-Z]/.test(link?.id || ""));
 }
 
 function selectedMarks(line) {
@@ -1744,13 +1739,6 @@ function autosaveBeforeLeave() {
   persistDraft("");
 }
 
-function autosaveBeforePageNavigation() {
-  if (!noteHasMeaningfulContent()) return;
-  if (manualVisitNumberRequired() || !reexamAtIsValid()) return;
-  if (reexamReviewRequired() && !state.reexamReview.completed) return;
-  persistDraft("");
-}
-
 function exportNote() {
   if (!validateVisitNumber()) return;
   if (!validateReexamAt()) return;
@@ -1860,11 +1848,6 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a[href]");
     if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
-    if (isPageNavigationLink(link)) {
-      state.allowPageNavigation = true;
-      autosaveBeforePageNavigation();
-      return;
-    }
     if (!canLeavePage()) {
       event.preventDefault();
       return;
@@ -1873,7 +1856,6 @@ function bindEvents() {
   });
   window.addEventListener("pagehide", autosaveBeforeLeave);
   window.addEventListener("beforeunload", (event) => {
-    if (state.allowPageNavigation) return;
     if ($("#doctor").value.trim()) return;
     event.preventDefault();
     event.returnValue = "";
