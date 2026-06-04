@@ -1312,11 +1312,18 @@ function currentPatientProfile() {
   return savedProfiles()[patient] || null;
 }
 
+function currentPatientInitialRecord() {
+  const patient = currentPatientName();
+  if (!patient) return null;
+  return savedInitials()
+    .filter((record) => String(record?.fields?.patientName || "").trim().toLowerCase() === patient)
+    .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
+}
+
 function applyPatientProfile() {
-  const profile = currentPatientProfile();
+  const profile = currentPatientProfile() || {};
   state.profileAlerts = [];
   patientDefaults.initialLevels = [];
-  if (!profile) return;
   const contraindications = $("#contraindications");
   const patientAge = $("#patientAge");
   const importantNotes = $("#importantNotes");
@@ -1388,8 +1395,10 @@ function fig4ImportantNotes(profile) {
 }
 
 function profileDefaultImportantNotes(profile) {
+  const initialRecord = currentPatientInitialRecord();
   return uniqueNoteLines([
     ...noteLines(filterProfileAlertNotes(profile?.importantNotes || "")),
+    ...noteLines(filterProfileAlertNotes(initialRecord?.fields?.importantNotes || "")),
     ...fig4ImportantNotes(profile)
   ]).join("\n");
 }

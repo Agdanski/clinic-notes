@@ -116,7 +116,7 @@ function applyProfileToInitial() {
   if (profile.patientName && !$("#patientName").value) $("#patientName").value = profile.patientName;
   if (profile.dob && !$("#dob").value) $("#dob").value = profile.dob;
   const importantNotes = document.getElementsByName("importantNotes")[0];
-  if (importantNotes && profile.importantNotes !== undefined) importantNotes.value = profile.importantNotes || "";
+  if (importantNotes && !importantNotes.value && profile.importantNotes !== undefined) importantNotes.value = profile.importantNotes || "";
   syncProfileSubluxationsToInitial(profile);
   updateAge();
   updatePatientNavLinks();
