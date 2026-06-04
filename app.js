@@ -100,6 +100,7 @@ const subjectiveItems = [
   ["EL", "side"], ["WR", "side"], ["FIN", "side"], ["HIP", "side"], ["KN", "side"], ["FT", "side"], ["Toe", "side"],
   ["TMJ", "side"], ["H", "side"], ["PMS"], ["GI"], ["SIC"], ["AL"], ["SIN"], ["DY"], ["TRAM"], ["STRES"], ["W"]
 ];
+const soapSubjectiveLabels = new Set(subjectiveItems.map(([label]) => label));
 const objectiveItems = [
   ["ROM", "rom"], ["C"], ["T"], ["L"], ["K27", "rotation"], ["MM", "tone"], ["Fig 4", "sidePlusMinus"],
   ["UNL", "unlevel"], ["Trap", "tone"], ["Better", "improvement", "Better"], ["Same", "improvement", "Same"],
@@ -1407,11 +1408,12 @@ function applyProfileSubjectiveDefaults(profile) {
     state.single.subjectiveChange = defaults.single.subjectiveChange;
   }
   Object.entries(defaults.selected || {}).forEach(([label, selected]) => {
-    if (selected) state.selected[makeKey("S", label)] = true;
+    if (selected && soapSubjectiveLabels.has(label)) state.selected[makeKey("S", label)] = true;
   });
   Object.entries(defaults.sided || {}).forEach(([label, side]) => {
-    if (side) state.sided[makeKey("S", label)] = side;
+    if (side && soapSubjectiveLabels.has(label)) state.sided[makeKey("S", label)] = side;
   });
+  state.selected[makeKey("S", "CK")] = true;
   state.profileSubjectiveDefaultsApplied = true;
 }
 
