@@ -396,7 +396,7 @@ function isInitialGeneratedImportantNote(line) {
     /^(v\.gen|gen|heavy|ST only)$/i.test(line);
 }
 
-function generatedImportantNoteLines() {
+function rawGeneratedImportantNoteLines() {
   const lines = [];
   const ltdAreas = Array.isArray(state.choices.ltdClickAreas) ? state.choices.ltdClickAreas : [];
   if (state.choices.ltdClick === "Y" && ltdAreas.length) lines.push(`ltd click ${ltdAreas.join(", ")}`);
@@ -409,8 +409,13 @@ function generatedImportantNoteLines() {
   };
   if (intensityLabels[state.choices.intensity]) lines.push(intensityLabels[state.choices.intensity]);
   if (state.choices.softTissueOnly === "Yes") lines.push("ST only");
+  return uniqueNoteLines(lines);
+}
+
+function generatedImportantNoteLines() {
+  const lines = rawGeneratedImportantNoteLines();
   const suppressed = new Set((currentPatientProfile()?.suppressedImportantNotes || []).map((line) => String(line).toLowerCase()));
-  return uniqueNoteLines(lines).filter((line) => !suppressed.has(line.toLowerCase()));
+  return lines.filter((line) => !suppressed.has(line.toLowerCase()));
 }
 
 function syncImportantNotesFieldWithGenerated() {
@@ -423,13 +428,12 @@ function syncImportantNotesFieldWithGenerated() {
 }
 
 function profileImportantNotes(fields = fieldsData()) {
-  if (fields.importantNotes !== syncImportantNotesFieldWithGenerated()) {
-    fields.importantNotes = document.getElementsByName("importantNotes")[0]?.value || "";
-  }
-  return uniqueNoteLines([
-    ...noteLines(fields.importantNotes),
-    ...generatedImportantNoteLines()
-  ]).join("\n");
+  return uniqueNoteLines(noteLines(fields.importantNotes)).join("\n");
+}
+
+function suppressedImportantNotes(fields = fieldsData()) {
+  const visible = new Set(noteLines(fields.importantNotes).map((line) => line.toLowerCase()));
+  return rawGeneratedImportantNoteLines().filter((line) => !visible.has(line.toLowerCase()));
 }
 
 function linesForFields(fields, pairs) {
@@ -558,8 +562,8 @@ function saveProfile(record) {
     patientAge: fields.patientAge,
     contraindications: profileContraindications(fields),
     importantNotes: profileImportantNotes(fields),
-    importantNotesAutoLines: generatedImportantNoteLines(),
-    suppressedImportantNotes: [],
+    importantNotesAutoLines: rawGeneratedImportantNoteLines(),
+    suppressedImportantNotes: suppressedImportantNotes(fields),
     neckAdjustment: state.choices.neckAdj || "",
     neckMob: state.choices.neckMob || "",
     softTissueOnly: state.choices.softTissueOnly || "",
@@ -751,6 +755,11 @@ function bindFields() {
       if (field.name === "orthoticsLastDate") updateOrthoticsRecheck();
       if (field.name === "dob") updateAge();
       if (field.name === "patientName") updatePatientNavLinks();
+      if (field.name === "importantNotes") {
+        $("#summaryText").textContent = buildSummary();
+        scheduleAutosave();
+        return;
+      }
       renderChoices();
       scheduleAutosave();
     });
@@ -758,6 +767,11 @@ function bindFields() {
       if (field.name === "orthoticsLastDate") updateOrthoticsRecheck();
       if (field.name === "dob") updateAge();
       if (field.name === "patientName") updatePatientNavLinks();
+      if (field.name === "importantNotes") {
+        $("#summaryText").textContent = buildSummary();
+        scheduleAutosave();
+        return;
+      }
       renderChoices();
       scheduleAutosave();
     });

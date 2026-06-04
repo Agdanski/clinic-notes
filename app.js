@@ -39,6 +39,8 @@ const state = {
   orthoticsPromptKey: "",
   orthoticsReminderDone: false,
   currentDraftId: null,
+  noteLocked: false,
+  completedAt: "",
   importantNotesCarriedFromSoap: false,
   profileImportantNotesApplied: false,
   profileSubjectiveDefaultsApplied: false,
@@ -551,6 +553,7 @@ function renderAll() {
   $$(".mark[data-line]").forEach(renderButton);
   updateDateParts();
   updateReexamFlag();
+  renderLockState();
   renderReexamReview();
   renderManualVisitWarning();
   updatePatientNavLinks();
@@ -561,6 +564,25 @@ function renderAll() {
   renderPriorReference();
   $("#summaryText").textContent = buildSummary();
   scheduleAutosave();
+}
+
+function renderLockState() {
+  const doneButton = $("#doneNote");
+  const warning = $("#lockedVisitWarning");
+  if (doneButton) doneButton.textContent = state.noteLocked ? "Unlock" : "Done";
+  if (warning) warning.hidden = !state.noteLocked;
+  document.body.classList.toggle("is-visit-locked", state.noteLocked);
+  [
+    "doctor", "visitNumber", "freeNote", "dcNote", "importantNotes", "orthosToggle",
+    "contraindications", "reExamAt", "monthYear", "visitDay"
+  ].forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) element.disabled = state.noteLocked;
+  });
+  $$(".mark[data-line]").forEach((button) => {
+    button.disabled = state.noteLocked;
+  });
+  $("#saveNote").disabled = state.noteLocked;
 }
 
 function updateDateParts() {
@@ -964,6 +986,16 @@ function latestCarryForwardDraft() {
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
 }
 
+function draftIsDone(draft) {
+  return Boolean(draft?.isDone || draft?.completedAt);
+}
+
+function sortByVisitThenUpdated(a, b) {
+  const visitDiff = Number(b.visitNumber || 0) - Number(a.visitNumber || 0);
+  if (visitDiff) return visitDiff;
+  return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+}
+
 function latestFrequencyDraft() {
   return savedDrafts()
     .filter((draft) => sameSelectedPatient(draft) && draft.single && draft.single.schedule)
@@ -1200,6 +1232,8 @@ function noteData() {
     levelFindings: state.levelFindings,
     reexamReview: state.reexamReview,
     orthoticsReminderDone: state.orthoticsReminderDone,
+    isDone: state.noteLocked,
+    completedAt: state.noteLocked ? (state.completedAt || new Date().toISOString()) : "",
     ...parts,
     summary: buildSummary(),
     updatedAt: new Date().toISOString()
@@ -1231,6 +1265,8 @@ function loadNote(note) {
   state.orthoticsPromptKey = "";
   state.orthoticsReminderDone = Boolean(note.orthoticsReminderDone);
   state.currentDraftId = note.id || `draft-${Date.now()}`;
+  state.noteLocked = draftIsDone(note);
+  state.completedAt = note.completedAt || "";
   state.importantNotesCarriedFromSoap = true;
   state.profileImportantNotesApplied = true;
   state.profileSubjectiveDefaultsApplied = true;
@@ -1481,6 +1517,8 @@ function noteHasMeaningfulContent() {
 
 function persistDraft(statusMessage) {
   const draft = noteData();
+  if (state.noteLocked && !draft.completedAt) draft.completedAt = new Date().toISOString();
+  draft.isDone = state.noteLocked;
   draft.id = draftStorageId(draft);
   state.currentDraftId = draft.id;
   const drafts = savedDrafts().filter((item) => item.id !== draft.id && !samePatientVisit(item, draft));
@@ -1492,6 +1530,7 @@ function persistDraft(statusMessage) {
 
 function scheduleAutosave() {
   if (!state.autosaveReady || !noteHasMeaningfulContent()) return;
+  if (state.noteLocked) return;
   if (manualVisitNumberRequired()) return;
   if (!reexamAtIsValid()) return;
   window.clearTimeout(autosaveTimer);
@@ -1506,7 +1545,7 @@ function renderDrafts() {
   savedDrafts().forEach((draft) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = `${draft.patientName || "Unnamed"} - visit ${draft.visitNumber || ""}`;
+    button.textContent = `${draft.patientName || "Unnamed"} - visit ${draft.visitNumber || ""}${draftIsDone(draft) ? " (done)" : ""}`;
     button.addEventListener("click", () => loadNote(draft));
     mount.appendChild(button);
   });
@@ -1521,7 +1560,7 @@ function loadRequestedNoteFromUrl() {
   const matchingDrafts = savedDrafts()
     .filter((draft) => draftPatientKey(draft) === patient)
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
-  const requested = visit ? matchingDrafts.find((draft) => draftVisitKey(draft) === visit) : matchingDrafts[0];
+  const requested = visit ? matchingDrafts.find((draft) => draftVisitKey(draft) === visit) : matchingDrafts.find((draft) => !draftIsDone(draft));
 
   if (requested) {
     loadNote(requested);
@@ -1529,11 +1568,26 @@ function loadRequestedNoteFromUrl() {
   }
 
   $("#patientName").value = params.get("patient");
-  if (currentPatientProfile()?.needsManualVisitNumber) {
+  const hasCompletedVisit = matchingDrafts.some(draftIsDone);
+  if (currentPatientProfile()?.needsManualVisitNumber && !hasCompletedVisit) {
     $("#visitNumber").value = "";
     $("#reExamAt").value = "";
+  } else {
+    prepareNextVisitFromCompletedDrafts(matchingDrafts);
   }
   renderAll();
+}
+
+function prepareNextVisitFromCompletedDrafts(matchingDrafts) {
+  const completed = matchingDrafts.filter(draftIsDone).sort(sortByVisitThenUpdated);
+  if (!completed.length) return;
+  const latest = completed[0];
+  const latestVisit = Number(latest.visitNumber || 0);
+  if (latestVisit) $("#visitNumber").value = String(latestVisit + 1);
+  $("#reExamAt").value = latest.nextReExamAt || latest.reExamAt || $("#reExamAt").value || patientDefaults.reExamEvery;
+  $("#importantNotes").value = filterProfileAlertNotes(latest.importantNotes || "");
+  state.importantNotesCarriedFromSoap = true;
+  if (latest.single?.schedule) state.single.schedule = latest.single.schedule;
 }
 
 function noteDateLabel(draft) {
@@ -1710,12 +1764,36 @@ function reexamAtIsValid() {
 }
 
 function saveDraft() {
+  if (state.noteLocked) {
+    setStatus("Visit is completed. Unlock before changing or saving.");
+    return;
+  }
   if (!validateVisitNumber()) return;
   if (!validateReexamAt()) return;
   if (!validateDcNote()) return;
   if (!validateReexamReview()) return;
   if (!validateDoctor()) return;
   persistDraft(window.ClinicServer ? "Draft saved to the clinic server." : "Draft saved on this device.");
+}
+
+function completeVisit() {
+  if (state.noteLocked) {
+    if (!window.confirm("Unlock this completed visit for correction?")) return;
+    state.noteLocked = false;
+    state.completedAt = "";
+    persistDraft("Visit unlocked for correction.");
+    renderAll();
+    return;
+  }
+  if (!validateVisitNumber()) return;
+  if (!validateReexamAt()) return;
+  if (!validateDcNote()) return;
+  if (!validateReexamReview()) return;
+  if (!validateDoctor()) return;
+  state.noteLocked = true;
+  state.completedAt = new Date().toISOString();
+  persistDraft("Visit completed and locked.");
+  renderAll();
 }
 
 function validateDoctor() {
@@ -1800,6 +1878,8 @@ function resetNote() {
   state.orthoticsPromptKey = "";
   state.orthoticsReminderDone = false;
   state.currentDraftId = null;
+  state.noteLocked = false;
+  state.completedAt = "";
   state.profileSubjectiveDefaultsApplied = false;
   renderAll();
 }
@@ -1810,10 +1890,12 @@ function bindEvents() {
     $(`#${id}`).addEventListener("change", renderAll);
   });
   $("#orthosToggle").addEventListener("click", () => {
+    if (state.noteLocked) return;
     state.orthosOpen = !state.orthosOpen;
     renderAll();
   });
   $("#saveNote").addEventListener("click", saveDraft);
+  $("#doneNote").addEventListener("click", completeVisit);
   $("#exportNote").addEventListener("click", exportNote);
   $("#printNote").addEventListener("click", printNote);
   $("#historyNote").addEventListener("click", openHistory);

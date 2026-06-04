@@ -73,10 +73,16 @@
         </label>
         <label>
           <span>Visit #</span>
-          <input id="visitNumber" type="number" min="2" step="1" value="2">
+          <span class="visit-number-control">
+            <input id="visitNumber" type="number" min="2" step="1" value="2">
+            <button type="button" id="doneNote" class="done-note-button">Done</button>
+          </span>
         </label>
         <strong class="reexam-flag" id="reexamFlag">Re-exam visit</strong>
         <strong class="next-reexam-flag" id="nextReexamFlag"></strong>
+      </div>
+      <div class="locked-visit-warning" id="lockedVisitWarning" hidden>
+        Visit completed. Unlock before making corrections.
       </div>
       <input id="visitTime" type="hidden" value="">
       <div class="manual-visit-warning" id="manualVisitWarning" hidden>
