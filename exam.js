@@ -517,6 +517,31 @@ function levelFindings() {
   }).filter(Boolean);
 }
 
+function uniqueList(items) {
+  return Array.from(new Set(items.filter(Boolean)));
+}
+
+function soapLevelForExamLevel(level) {
+  const mapped = {
+    OCC: "C0",
+    ATLAS: "C1",
+    AXIS: "C2"
+  }[level] || level;
+  const allowed = new Set([
+    "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7",
+    "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12",
+    "L1", "L2", "L3", "L4", "L5", "SI-L", "SI-R"
+  ]);
+  return allowed.has(mapped) ? mapped : "";
+}
+
+function examSubluxations() {
+  return uniqueList(levels.map((level) => {
+    const value = state.choices[`level:${level}`];
+    return value ? soapLevelForExamLevel(level) : "";
+  }));
+}
+
 function allDtrMotorSensationNormal() {
   return [
     ...dtrItems.flatMap((item) => [`dtr:${item}:L`, `dtr:${item}:R`].map((key) => state.choices[key] === "2+")),
@@ -597,6 +622,7 @@ function noteData() {
     muscleFindings: muscleFindings().join("; "),
     orthoFindings: orthoFindings().join("; "),
     neuroFindings: neuroFindings().join("; "),
+    examSubluxations: examSubluxations(),
     examTorque: examTorque(),
     examFig4Findings: examFig4Findings(),
     summary: buildSummary(),
@@ -660,15 +686,21 @@ function saveProfile(record) {
   const key = patientKey(record.fields.patientName);
   if (!key) return;
   const profiles = savedProfiles();
+  const existing = profiles[key] || {};
+  const previousExamSubluxations = Array.isArray(existing.examSubluxations) ? existing.examSubluxations : [];
+  const existingManualSubluxations = (Array.isArray(existing.subluxations) ? existing.subluxations : [])
+    .filter((level) => !previousExamSubluxations.includes(level));
   profiles[key] = {
-    ...(profiles[key] || {}),
+    ...existing,
     patientName: record.fields.patientName,
-    patientId: record.fields.patientId || profiles[key]?.patientId || "",
+    patientId: record.fields.patientId || existing.patientId || "",
     examPostureFindings: record.postureFindings,
     examRetestItems: record.examRetestItems || [],
     examMuscleFindings: record.muscleFindings,
     examOrthoFindings: record.orthoFindings,
     examNeuroFindings: record.neuroFindings,
+    examSubluxations: record.examSubluxations || [],
+    subluxations: uniqueList([...(record.examSubluxations || []), ...existingManualSubluxations]),
     examTorque: record.examTorque,
     examFig4Findings: record.examFig4Findings,
     examUpdatedAt: record.updatedAt

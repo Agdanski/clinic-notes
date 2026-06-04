@@ -109,6 +109,12 @@ function isPageNavigationLink(link) {
   return Boolean(link?.classList?.contains("patient-nav-link") || /^nav[A-Z]/.test(link?.id || ""));
 }
 
+function syncProfileSubluxationsToInitial(profile) {
+  if (!Array.isArray(profile?.subluxations)) return;
+  const profileSubluxations = profile.subluxations;
+  state.choices.subluxationPattern = [...profileSubluxations];
+}
+
 function applyProfileToInitial() {
   const profile = currentPatientProfile();
   if (!profile) return;
@@ -116,6 +122,7 @@ function applyProfileToInitial() {
   if (profile.dob && !$("#dob").value) $("#dob").value = profile.dob;
   const importantNotes = document.getElementsByName("importantNotes")[0];
   if (importantNotes && profile.importantNotes !== undefined) importantNotes.value = profile.importantNotes || "";
+  syncProfileSubluxationsToInitial(profile);
   updateAge();
   updatePatientNavLinks();
   renderChoices();
