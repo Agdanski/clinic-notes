@@ -1324,7 +1324,7 @@ function loadNote(note) {
   state.completedAt = note.completedAt || "";
   state.importantNotesCarriedFromSoap = true;
   state.profileImportantNotesApplied = false;
-  state.profileSubjectiveDefaultsApplied = true;
+  state.profileSubjectiveDefaultsApplied = false;
   renderAll();
   setStatus("Draft loaded.");
 }
@@ -1516,10 +1516,19 @@ function syncSoapImportantNotesToProfile(draft) {
   if (changed) writeInitials(updatedInitials);
 }
 
+function mergedSubjectiveDefaults(profile) {
+  const initialRecord = currentPatientInitialRecord();
+  const sources = [profile?.subjectiveDefaults || {}, initialRecord?.choices?.subjectiveDefaults || {}];
+  return sources.reduce((merged, defaults) => ({
+    selected: { ...merged.selected, ...(defaults.selected || {}) },
+    sided: { ...merged.sided, ...(defaults.sided || {}) },
+    single: { ...merged.single, ...(defaults.single || {}) }
+  }), { selected: {}, sided: {}, single: {} });
+}
+
 function applyProfileSubjectiveDefaults(profile) {
-  if (state.currentDraftId) return;
   if (state.profileSubjectiveDefaultsApplied) return;
-  const defaults = profile.subjectiveDefaults || {};
+  const defaults = mergedSubjectiveDefaults(profile);
   if (defaults.single?.subjectiveChange && !state.single.subjectiveChange) {
     state.single.subjectiveChange = defaults.single.subjectiveChange;
   }
