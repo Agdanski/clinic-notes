@@ -563,8 +563,16 @@ function renderAll() {
   renderDcNote();
   renderOrthos();
   renderPriorReference();
+  resizeImportantNotes();
   $("#summaryText").textContent = buildSummary();
   scheduleAutosave();
+}
+
+function resizeImportantNotes() {
+  const field = $("#importantNotes");
+  if (!field) return;
+  field.style.height = "auto";
+  field.style.height = `${Math.max(132, field.scrollHeight)}px`;
 }
 
 function renderLockState() {

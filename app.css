@@ -336,6 +336,8 @@ input[readonly] {
 
 .important-box textarea {
   min-height: 132px;
+  overflow: hidden;
+  resize: none;
 }
 
 .contraindications-box textarea {
