@@ -552,6 +552,13 @@ function examKinesioFindings() {
   }));
 }
 
+function examFunctionalImportantNotes() {
+  return uniqueList([
+    state.choices["functional:H.H."] === "+" ? "HH+" : "",
+    state.choices["functional:ICV"] === "+" ? "ICV+" : ""
+  ]);
+}
+
 function allDtrMotorSensationNormal() {
   return [
     ...dtrItems.flatMap((item) => [`dtr:${item}:L`, `dtr:${item}:R`].map((key) => state.choices[key] === "2+")),
@@ -634,6 +641,7 @@ function noteData() {
     neuroFindings: neuroFindings().join("; "),
     examSubluxations: examSubluxations(),
     examKinesioFindings: examKinesioFindings(),
+    examFunctionalFindings: examFunctionalImportantNotes(),
     examTorque: examTorque(),
     examFig4Findings: examFig4Findings(),
     summary: buildSummary(),
@@ -708,6 +716,7 @@ function saveProfile(record) {
     examNeuroFindings: record.neuroFindings,
     examSubluxations: record.examSubluxations || [],
     examKinesioFindings: record.examKinesioFindings || [],
+    examFunctionalFindings: record.examFunctionalFindings || [],
     subluxations: uniqueList([...(record.examSubluxations || []), ...existingManualSubluxations]),
     examTorque: record.examTorque,
     examFig4Findings: record.examFig4Findings,

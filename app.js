@@ -981,15 +981,40 @@ function torqueTallyText() {
   return `torque R ${counts.R}x L ${counts.L}x`;
 }
 
+function soapLevelForExamLevel(level) {
+  const mapped = {
+    OCC: "C0",
+    ATLAS: "C1",
+    AXIS: "C2"
+  }[level] || level;
+  const allowed = new Set([...cervical, ...thoracic, ...lumbar, "SI-L", "SI-R"]);
+  return allowed.has(mapped) ? mapped : "";
+}
+
+function examKinesioFindingsFromChoices(choices = {}) {
+  const examLevels = [
+    "OCC", "ATLAS", "AXIS", "C3", "C4", "C5", "C6", "C7",
+    "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12",
+    "L1", "L2", "L3", "L4", "L5", "SI-L", "SI-R"
+  ];
+  return uniqueNoteLines(examLevels.map((level) => {
+    const value = choices[`level:${level}`];
+    const soapLevel = value ? soapLevelForExamLevel(level) : "";
+    if (!soapLevel) return "";
+    return value === "TOP" ? `${soapLevel} TOP` : soapLevel;
+  }).filter(Boolean));
+}
+
 function examKinesioDefaults(profile = currentPatientProfile()) {
   const profileFindings = Array.isArray(profile?.examKinesioFindings) ? profile.examKinesioFindings : [];
   if (profileFindings.length) return profileFindings;
   const examRecord = currentPatientExamRecord();
-  return Array.isArray(examRecord?.examKinesioFindings) ? examRecord.examKinesioFindings : [];
+  if (Array.isArray(examRecord?.examKinesioFindings) && examRecord.examKinesioFindings.length) return examRecord.examKinesioFindings;
+  return examKinesioFindingsFromChoices(examRecord?.choices || {});
 }
 
 function examKinesioSubjectiveText() {
-  const findings = examKinesioDefaults();
+  const findings = examKinesioDefaults().filter((finding) => /\bTOP$/i.test(String(finding || "")));
   return findings.length ? `Exam kinesio: ${findings.join(", ")}` : "";
 }
 
@@ -1406,7 +1431,8 @@ function isDefaultImportantNoteLine(line) {
   return /^ltd click\b/i.test(line) ||
     /^ant -\b/i.test(line) ||
     /^(v\.gen|gen|heavy|ST only)$/i.test(line) ||
-    /^[RLB] fig 4\+$/i.test(line);
+    /^[RLB] fig 4\+$/i.test(line) ||
+    /^(HH|ICV)\+$/i.test(line);
 }
 
 function fig4ImportantNotes(profile) {
@@ -1417,12 +1443,26 @@ function fig4ImportantNotes(profile) {
   return Array.isArray(latestExam?.examFig4Findings) ? latestExam.examFig4Findings.filter((line) => !suppressed.has(String(line).toLowerCase())) : [];
 }
 
+function functionalImportantNotes(profile) {
+  const suppressed = new Set((profile?.suppressedImportantNotes || []).map((line) => String(line).toLowerCase()));
+  const findings = Array.isArray(profile?.examFunctionalFindings) ? profile.examFunctionalFindings : [];
+  if (findings.length) return findings.filter((line) => !suppressed.has(String(line).toLowerCase()));
+  const latestExam = currentPatientExamRecord();
+  const examFindings = Array.isArray(latestExam?.examFunctionalFindings) ? latestExam.examFunctionalFindings : [];
+  const fallbackFindings = [
+    latestExam?.choices?.["functional:H.H."] === "+" ? "HH+" : "",
+    latestExam?.choices?.["functional:ICV"] === "+" ? "ICV+" : ""
+  ].filter(Boolean);
+  return (examFindings.length ? examFindings : fallbackFindings).filter((line) => !suppressed.has(String(line).toLowerCase()));
+}
+
 function profileDefaultImportantNotes(profile) {
   const initialRecord = currentPatientInitialRecord();
   return uniqueNoteLines([
     ...noteLines(filterProfileAlertNotes(profile?.importantNotes || "")),
     ...noteLines(filterProfileAlertNotes(initialRecord?.fields?.importantNotes || "")),
-    ...fig4ImportantNotes(profile)
+    ...fig4ImportantNotes(profile),
+    ...functionalImportantNotes(profile)
   ]).join("\n");
 }
 
@@ -1442,7 +1482,8 @@ function syncSoapImportantNotesToProfile(draft) {
   const existing = profiles[profileKey] || {};
   const autoLines = uniqueNoteLines([
     ...(Array.isArray(existing.importantNotesAutoLines) ? existing.importantNotesAutoLines : []),
-    ...(Array.isArray(existing.examFig4Findings) ? existing.examFig4Findings : [])
+    ...(Array.isArray(existing.examFig4Findings) ? existing.examFig4Findings : []),
+    ...(Array.isArray(existing.examFunctionalFindings) ? existing.examFunctionalFindings : [])
   ]);
   profiles[profileKey] = {
     ...existing,
@@ -1516,6 +1557,17 @@ function draftStorageId(draft) {
 
 function samePatientVisit(a, b) {
   return draftPatientKey(a) === draftPatientKey(b) && draftVisitKey(a) === draftVisitKey(b);
+}
+
+function loadExistingVisitFromNumber() {
+  const patient = currentPatientName();
+  const visit = String($("#visitNumber").value || "").trim();
+  if (!patient || !visit) return;
+  const existing = savedDrafts()
+    .filter((draft) => draftPatientKey(draft) === patient && draftVisitKey(draft) === visit)
+    .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
+  if (!existing || existing.id === state.currentDraftId) return;
+  loadNote(existing);
 }
 
 function noteHasMeaningfulContent() {
@@ -1921,6 +1973,7 @@ function bindEvents() {
     $(`#${id}`).addEventListener("input", renderAll);
     $(`#${id}`).addEventListener("change", renderAll);
   });
+  $("#visitNumber").addEventListener("change", loadExistingVisitFromNumber);
   $("#orthosToggle").addEventListener("click", () => {
     if (state.noteLocked) return;
     state.orthosOpen = !state.orthosOpen;
