@@ -554,6 +554,7 @@ function renderAll() {
   updateDateParts();
   updateReexamFlag();
   renderLockState();
+  renderSubjectiveCarryForward();
   renderReexamReview();
   renderManualVisitWarning();
   updatePatientNavLinks();
@@ -980,6 +981,18 @@ function torqueTallyText() {
   return `torque R ${counts.R}x L ${counts.L}x`;
 }
 
+function examKinesioDefaults(profile = currentPatientProfile()) {
+  const profileFindings = Array.isArray(profile?.examKinesioFindings) ? profile.examKinesioFindings : [];
+  if (profileFindings.length) return profileFindings;
+  const examRecord = currentPatientExamRecord();
+  return Array.isArray(examRecord?.examKinesioFindings) ? examRecord.examKinesioFindings : [];
+}
+
+function examKinesioSubjectiveText() {
+  const findings = examKinesioDefaults();
+  return findings.length ? `Exam kinesio: ${findings.join(", ")}` : "";
+}
+
 function latestCarryForwardDraft() {
   return savedDrafts()
     .filter(sameSelectedPatient)
@@ -1035,6 +1048,8 @@ function renderPriorReference() {
 function buildParts() {
   const s = selectedMarks("S");
   if (state.single.subjectiveChange) s.push(state.single.subjectiveChange);
+  const examKinesio = examKinesioSubjectiveText();
+  if (examKinesio) s.push(examKinesio);
   const o = selectedMarks("O");
   const oDetail = selectedMarks("OD");
   const shoulderLevel = shoulderLevelText(state.single.shoulderLevel);
@@ -1058,6 +1073,14 @@ function buildParts() {
     aText: a.join(", "),
     pText: p.join(", ")
   };
+}
+
+function renderSubjectiveCarryForward() {
+  const target = $("#subjectiveCarryForward");
+  if (!target) return;
+  const text = examKinesioSubjectiveText();
+  target.textContent = text;
+  target.hidden = !text;
 }
 
 function filled(value, fallback = "Not documented") {
@@ -1268,7 +1291,7 @@ function loadNote(note) {
   state.noteLocked = draftIsDone(note);
   state.completedAt = note.completedAt || "";
   state.importantNotesCarriedFromSoap = true;
-  state.profileImportantNotesApplied = true;
+  state.profileImportantNotesApplied = false;
   state.profileSubjectiveDefaultsApplied = true;
   renderAll();
   setStatus("Draft loaded.");

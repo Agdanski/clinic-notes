@@ -376,6 +376,16 @@ input[readonly] {
   min-height: 44px;
 }
 
+.line-carry {
+  grid-column: 2;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f5f7f7;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .orthos-line .line-content {
   align-items: stretch;
 }

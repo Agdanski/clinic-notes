@@ -8,6 +8,7 @@ const levels = [
 ];
 const posturalItems = ["Foot pronation", "Long leg"];
 const functionalItems = ["K27"];
+const functionalPositiveItems = ["H.H.", "ICV"];
 const muscleItems = ["Psoas", "Piriformis", "QF", "Glut", "Hamst", "Delt", "Pect", "Lats", "Other", "S. Spin"];
 const orthoItems = ["Heel to buttock", "Ely's", "Yeomans", "SLR", "Kemp's", "Int shoulder rotation", "Ext shoulder rotation", "Figure 4"];
 const cervicalMotionItems = ["C/S rotation", "C/S lateral flexion"];
@@ -185,6 +186,7 @@ function mountPosture() {
 function mountFunctionalChecks() {
   const target = $("#functionalGrid");
   functionalItems.forEach((item) => addRow(target, item, makeChoiceGroup(`functional:${item}`, ["L", "N", "R"])));
+  functionalPositiveItems.forEach((item) => addRow(target, item, makeChoiceGroup(`functional:${item}`, ["+"])));
   addRow(target, "Torque", makeChoiceGroup("functional:Torque", ["R", "L"]));
 }
 
@@ -541,6 +543,15 @@ function examSubluxations() {
   }));
 }
 
+function examKinesioFindings() {
+  return uniqueList(levels.map((level) => {
+    const value = state.choices[`level:${level}`];
+    const soapLevel = value ? soapLevelForExamLevel(level) : "";
+    if (!soapLevel) return "";
+    return value === "TOP" ? `${soapLevel} TOP` : soapLevel;
+  }));
+}
+
 function allDtrMotorSensationNormal() {
   return [
     ...dtrItems.flatMap((item) => [`dtr:${item}:L`, `dtr:${item}:R`].map((key) => state.choices[key] === "2+")),
@@ -622,6 +633,7 @@ function noteData() {
     orthoFindings: orthoFindings().join("; "),
     neuroFindings: neuroFindings().join("; "),
     examSubluxations: examSubluxations(),
+    examKinesioFindings: examKinesioFindings(),
     examTorque: examTorque(),
     examFig4Findings: examFig4Findings(),
     summary: buildSummary(),
@@ -695,6 +707,7 @@ function saveProfile(record) {
     examOrthoFindings: record.orthoFindings,
     examNeuroFindings: record.neuroFindings,
     examSubluxations: record.examSubluxations || [],
+    examKinesioFindings: record.examKinesioFindings || [],
     subluxations: uniqueList([...(record.examSubluxations || []), ...existingManualSubluxations]),
     examTorque: record.examTorque,
     examFig4Findings: record.examFig4Findings,
