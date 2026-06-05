@@ -645,18 +645,6 @@ pre {
   line-height: 1.45;
 }
 
-.draft-list {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.draft-list button {
-  padding: 0 12px;
-  background: #fff7e7;
-}
-
 dialog {
   width: min(380px, calc(100vw - 28px));
   border: 0;
@@ -964,7 +952,6 @@ dialog::backdrop {
   .sheet,
   .summary-head,
   #statusLine,
-  .draft-list,
   dialog {
     display: none;
   }

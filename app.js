@@ -1696,7 +1696,6 @@ function persistDraft(statusMessage) {
   const drafts = savedDrafts().filter((item) => item.id !== draft.id && !samePatientVisit(item, draft));
   writeDrafts([draft, ...drafts]);
   syncSoapImportantNotesToProfile(draft);
-  renderDrafts();
   if (statusMessage) setStatus(statusMessage);
 }
 
@@ -1709,18 +1708,6 @@ function scheduleAutosave() {
   autosaveTimer = window.setTimeout(() => {
     persistDraft("Autosaved.");
   }, 700);
-}
-
-function renderDrafts() {
-  const mount = $("#draftList");
-  mount.innerHTML = "";
-  savedDrafts().forEach((draft) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = `${draft.patientName || "Unnamed"} - visit ${draft.visitNumber || ""}${draftIsDone(draft) ? " (done)" : ""}`;
-    button.addEventListener("click", () => loadNote(draft));
-    mount.appendChild(button);
-  });
 }
 
 function loadRequestedNoteFromUrl() {
@@ -2096,12 +2083,6 @@ function bindEvents() {
     await navigator.clipboard.writeText($("#summaryText").textContent);
     setStatus("Summary copied.");
   });
-  $("#clearDrafts").addEventListener("click", () => {
-    if (!window.confirm("Clear saved drafts from this browser?")) return;
-    localStorage.removeItem(STORAGE_KEY);
-    renderDrafts();
-    setStatus("Drafts cleared.");
-  });
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a[href]");
     if (!link || link.target === "_blank" || link.href.startsWith("javascript:")) return;
@@ -2129,4 +2110,3 @@ bindEvents();
 resetNote();
 loadRequestedNoteFromUrl();
 state.autosaveReady = true;
-renderDrafts();
