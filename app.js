@@ -1058,11 +1058,75 @@ function priorLine(label, value) {
   return value ? `${label}: ${value}` : "";
 }
 
-function priorSubjectiveText(value) {
-  return String(value || "")
-    .split(", ")
-    .filter((item) => !/^Exam kinesio:/i.test(item.trim()))
-    .join(", ");
+function draftSeverityText(draft, key) {
+  const severity = draft?.severity?.[key];
+  return severity === "yellow" ? "moderate" : severity === "red" ? "severe" : "";
+}
+
+function draftLineMarks(draft, line, defaults = {}) {
+  const parts = [];
+  const defaultSelected = defaults.selected || new Set();
+  const defaultSided = defaults.sided || {};
+  Object.entries(draft?.selected || {}).forEach(([key, selected]) => {
+    if (!selected || !key.startsWith(`${line}:`)) return;
+    const severityText = draftSeverityText(draft, key);
+    if (defaultSelected.has(key) && !severityText) return;
+    const label = key.slice(line.length + 1);
+    parts.push(`${label}${severityText ? ` ${severityText}` : ""}`);
+  });
+  Object.entries(draft?.sided || {}).forEach(([key, value]) => {
+    if (!key.startsWith(`${line}:`)) return;
+    const severityText = draftSeverityText(draft, key);
+    if (defaultSided[key] === value && !severityText) return;
+    const label = key.slice(line.length + 1);
+    parts.push(`${label} ${displayValue(value)}${severityText ? ` ${severityText}` : ""}`);
+  });
+  return parts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function subjectiveDefaultMarks() {
+  const defaults = mergedSubjectiveDefaults(currentPatientProfile() || {});
+  const selected = new Set([makeKey("S", "CK")]);
+  const sided = {};
+  Object.entries(defaults.selected || {}).forEach(([label, value]) => {
+    if (value && soapSubjectiveLabels.has(label)) selected.add(makeKey("S", label));
+  });
+  Object.entries(defaults.sided || {}).forEach(([label, value]) => {
+    if (value && soapSubjectiveLabels.has(label)) sided[makeKey("S", label)] = value;
+  });
+  return { selected, sided, single: defaults.single?.subjectiveChange || "" };
+}
+
+function priorSubjectiveText(draft) {
+  const defaults = subjectiveDefaultMarks();
+  const parts = draftLineMarks(draft, "S", defaults);
+  const subjectiveChange = draft?.single?.subjectiveChange || "";
+  if (subjectiveChange && subjectiveChange !== defaults.single) parts.push(subjectiveChange);
+  return parts.join(", ");
+}
+
+function priorObjectiveText(draft) {
+  const parts = draftLineMarks(draft, "O");
+  const improvement = draft?.single?.improvement || "";
+  if (improvement && improvement !== patientDefaults.improvement) parts.push(improvement);
+  return parts.join(", ");
+}
+
+function priorObjectiveDetailText(draft) {
+  const parts = draftLineMarks(draft, "OD");
+  const shoulderLevel = shoulderLevelText(draft?.single?.shoulderLevel);
+  const hipLevel = hipLevelText(draft?.single?.hipLevel);
+  if (shoulderLevel) parts.push(shoulderLevel);
+  if (hipLevel) parts.push(hipLevel);
+  return parts.join(", ");
+}
+
+function priorAssessmentText(draft) {
+  const defaultSelected = new Set();
+  if (currentPatientProfile()?.softTissueOnly === "Yes") defaultSelected.add(makeKey("A", "Soft tissue only"));
+  const parts = draftLineMarks(draft, "A", { selected: defaultSelected });
+  const visitLevels = Array.from(draft?.visitLevels || []).map((item) => draft?.levelFindings?.[item] === "TOP" ? `${item} TOP^` : `${item}^`);
+  return [...parts, ...visitLevels].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(", ");
 }
 
 function renderPriorReference() {
@@ -1076,11 +1140,11 @@ function renderPriorReference() {
   target.textContent = [
     `Visit #${prior.visitNumber || ""}`,
     torqueLine,
-    priorLine("S", priorSubjectiveText(prior.sText)),
-    priorLine("O", prior.oText),
-    priorLine("O detail", prior.oDetailText),
-    priorLine("Orthos", prior.orthosText),
-    priorLine("A", prior.aText),
+    priorLine("S", priorSubjectiveText(prior)),
+    priorLine("O", priorObjectiveText(prior)),
+    priorLine("O detail", priorObjectiveDetailText(prior)),
+    priorLine("Orthos", draftLineMarks(prior, "ORTHO").join(", ")),
+    priorLine("A", priorAssessmentText(prior)),
     prior.freeNote ? `Free note: ${prior.freeNote}` : ""
   ].filter(Boolean).join("\n");
 }
