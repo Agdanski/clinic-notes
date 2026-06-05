@@ -1050,6 +1050,13 @@ function priorLine(label, value) {
   return value ? `${label}: ${value}` : "";
 }
 
+function priorSubjectiveText(value) {
+  return String(value || "")
+    .split(", ")
+    .filter((item) => !/^Exam kinesio:/i.test(item.trim()))
+    .join(", ");
+}
+
 function renderPriorReference() {
   const prior = previousDraftForCurrentVisit();
   const target = $("#priorReference");
@@ -1061,7 +1068,7 @@ function renderPriorReference() {
   target.textContent = [
     `Visit #${prior.visitNumber || ""}`,
     torqueLine,
-    priorLine("S", prior.sText),
+    priorLine("S", priorSubjectiveText(prior.sText)),
     priorLine("O", prior.oText),
     priorLine("O detail", prior.oDetailText),
     priorLine("Orthos", prior.orthosText),
