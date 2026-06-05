@@ -39,6 +39,7 @@ const state = {
   orthoticsPromptKey: "",
   orthoticsReminderDone: false,
   currentDraftId: null,
+  loadedVisitNumber: "",
   noteLocked: false,
   completedAt: "",
   importantNotesCarriedFromSoap: false,
@@ -582,7 +583,7 @@ function renderLockState() {
   if (warning) warning.hidden = !state.noteLocked;
   document.body.classList.toggle("is-visit-locked", state.noteLocked);
   [
-    "doctor", "visitNumber", "freeNote", "dcNote", "importantNotes", "orthosToggle",
+    "doctor", "freeNote", "dcNote", "importantNotes", "orthosToggle",
     "contraindications", "reExamAt", "monthYear", "visitDay"
   ].forEach((id) => {
     const element = document.getElementById(id);
@@ -1392,6 +1393,7 @@ function loadNote(note) {
   state.orthoticsPromptKey = "";
   state.orthoticsReminderDone = Boolean(note.orthoticsReminderDone);
   state.currentDraftId = note.id || `draft-${Date.now()}`;
+  state.loadedVisitNumber = String(note.visitNumber || "");
   state.noteLocked = draftIsDone(note);
   state.completedAt = note.completedAt || "";
   state.importantNotesCarriedFromSoap = true;
@@ -1647,15 +1649,57 @@ function samePatientVisit(a, b) {
   return draftPatientKey(a) === draftPatientKey(b) && draftVisitKey(a) === draftVisitKey(b);
 }
 
+function draftsForCurrentPatient() {
+  const patient = currentPatientName();
+  if (!patient) return [];
+  return savedDrafts().filter((draft) => draftPatientKey(draft) === patient);
+}
+
+function allowedNewVisitNumber(drafts, requestedVisit) {
+  const completedVisits = drafts.filter(draftIsDone).map((draft) => Number(draft.visitNumber || 0)).filter(Boolean);
+  if (!completedVisits.length) {
+    if (currentPatientProfile()?.needsManualVisitNumber) return Number(requestedVisit || 0);
+    return 2;
+  }
+  return Math.max(...completedVisits) + 1;
+}
+
+function startAllowedNewVisit(matchingDrafts, visit) {
+  const patientName = $("#patientName").value;
+  resetNote();
+  $("#patientName").value = patientName;
+  prepareNextVisitFromCompletedDrafts(matchingDrafts);
+  $("#visitNumber").value = String(visit);
+  state.loadedVisitNumber = String(visit);
+  state.currentDraftId = null;
+  state.noteLocked = false;
+  state.completedAt = "";
+  renderAll();
+  setStatus(`Visit ${visit} ready.`);
+}
+
 function loadExistingVisitFromNumber() {
   const patient = currentPatientName();
   const visit = String($("#visitNumber").value || "").trim();
   if (!patient || !visit) return;
-  const existing = savedDrafts()
-    .filter((draft) => draftPatientKey(draft) === patient && draftVisitKey(draft) === visit)
+  const matchingDrafts = draftsForCurrentPatient();
+  const existing = matchingDrafts
+    .filter((draft) => draftVisitKey(draft) === visit)
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
-  if (!existing || existing.id === state.currentDraftId) return;
-  loadNote(existing);
+  if (existing) {
+    if (existing.id === state.currentDraftId) return;
+    loadNote(existing);
+    return;
+  }
+  const requestedVisit = Number(visit);
+  const allowedVisit = allowedNewVisitNumber(matchingDrafts, requestedVisit);
+  if (requestedVisit && requestedVisit === allowedVisit) {
+    startAllowedNewVisit(matchingDrafts, requestedVisit);
+    return;
+  }
+  $("#visitNumber").value = state.loadedVisitNumber || String(allowedVisit || "");
+  renderAll();
+  setStatus(`Visit ${visit} is not available yet.`);
 }
 
 function noteHasMeaningfulContent() {
@@ -1731,6 +1775,7 @@ function loadRequestedNoteFromUrl() {
   if (currentPatientProfile()?.needsManualVisitNumber && !hasCompletedVisit) {
     $("#visitNumber").value = "";
     $("#reExamAt").value = "";
+    state.loadedVisitNumber = "";
   } else {
     prepareNextVisitFromCompletedDrafts(matchingDrafts);
   }
@@ -1742,7 +1787,10 @@ function prepareNextVisitFromCompletedDrafts(matchingDrafts) {
   if (!completed.length) return;
   const latest = completed[0];
   const latestVisit = Number(latest.visitNumber || 0);
-  if (latestVisit) $("#visitNumber").value = String(latestVisit + 1);
+  if (latestVisit) {
+    $("#visitNumber").value = String(latestVisit + 1);
+    state.loadedVisitNumber = String(latestVisit + 1);
+  }
   $("#reExamAt").value = latest.nextReExamAt || latest.reExamAt || $("#reExamAt").value || patientDefaults.reExamEvery;
   $("#importantNotes").value = filterProfileAlertNotes(latest.importantNotes || "");
   state.importantNotesCarriedFromSoap = true;
@@ -2018,6 +2066,7 @@ function resetNote() {
   $("#contraindications").value = patientDefaults.contraindications;
   $("#doctor").value = "";
   $("#visitNumber").value = 2;
+  state.loadedVisitNumber = "2";
   $("#freeNote").value = "";
   $("#dcNote").value = "";
   $("#importantNotes").value = filterProfileAlertNotes(carryForward?.importantNotes || "");
