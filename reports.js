@@ -128,7 +128,7 @@ function writeReports(reports) {
 function diagnosticReportSummary(record) {
   return [
     "Gdanski Chiropractic Clinic",
-    "Report / Diagnostic Report / Image",
+    "Diagnostic Report / Image",
     "",
     `Patient: ${record.patientName || "Not documented"}`,
     `Type: ${record.reportType || "Not documented"}`,
