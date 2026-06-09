@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Diagnostic Reports</title>
+  <title>Reports, Diagnostic Reports and Images</title>
   <link rel="stylesheet" href="app.css?v=20260528-alerts">
   <link rel="stylesheet" href="initial.css">
   <link rel="stylesheet" href="dashboard.css">
@@ -17,7 +17,7 @@
       </div>
       <div class="page-title">
         <p class="eyebrow">Patient file</p>
-        <h1>Diagnostic reports</h1>
+        <h1>Reports, diagnostic reports and images</h1>
       </div>
       <div class="actions">
         <a class="button-link" id="navDashboard" href="dashboard.html">Dashboard</a>
@@ -42,7 +42,9 @@
               <option>MRI</option>
               <option>CT</option>
               <option>Ultrasound</option>
+              <option>Image / photo</option>
               <option>Other imaging</option>
+              <option>Other report</option>
             </select>
           </label>
           <label>
@@ -55,17 +57,17 @@
           </label>
         </div>
         <label>
-          <span>Upload report</span>
+          <span>Upload report or image</span>
           <input id="reportFile" type="file" accept="application/pdf,image/*,.txt,text/plain">
         </label>
         <div class="dashboard-actions">
-          <button type="button" id="extractReport">Extract report text</button>
-          <button type="button" id="applyReport">Save report to patient</button>
+          <button type="button" id="extractReport">Extract text if available</button>
+          <button type="button" id="applyReport">Save to patient file</button>
         </div>
         <output id="reportStatus" aria-live="polite"></output>
         <label>
-          <span>Report text / notes</span>
-          <textarea id="reportText" rows="8" placeholder="Extracted report text appears here. Staff can edit or paste report findings before saving."></textarea>
+          <span>Report / image notes</span>
+          <textarea id="reportText" rows="8" placeholder="Extracted text appears here when available. Staff can edit, paste report findings, or add image notes before saving."></textarea>
         </label>
         <div id="reportList" class="report-list"></div>
       </section>

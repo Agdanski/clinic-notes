@@ -76,6 +76,12 @@ function requestedPatientName() {
   return String(new URLSearchParams(window.location.search).get("patient") || "").trim();
 }
 
+function requireSelectedPatient() {
+  if (requestedPatientName()) return true;
+  window.location.replace("dashboard.html");
+  return false;
+}
+
 function currentProfile() {
   const name = requestedPatientName();
   return readJson(PROFILE_STORAGE_KEY, {})[patientKey(name)] || null;
@@ -122,7 +128,7 @@ function writeReports(reports) {
 function diagnosticReportSummary(record) {
   return [
     "Gdanski Chiropractic Clinic",
-    "Diagnostic Report",
+    "Report / Diagnostic Report / Image",
     "",
     `Patient: ${record.patientName || "Not documented"}`,
     `Type: ${record.reportType || "Not documented"}`,
@@ -130,7 +136,7 @@ function diagnosticReportSummary(record) {
     `Body area/location: ${record.bodyArea || "Not documented"}`,
     `Source file: ${record.fileName || "Not documented"}`,
     "",
-    "Report Text / Findings",
+    "Report Text / Findings / Image Notes",
     record.reportText || "Not documented"
   ].join("\n");
 }
@@ -185,7 +191,7 @@ async function ocrImage(file) {
 async function extractDiagnosticReport() {
   const file = $("#reportFile").files[0];
   if (!file) {
-    setReportStatus("Choose a diagnostic report first.");
+    setReportStatus("Choose a report or image first.");
     return;
   }
   setReportStatus("Extracting report text.");
@@ -253,10 +259,10 @@ async function applyDiagnosticReport() {
     return;
   }
   if (!record.reportText && !record.fileName) {
-    setReportStatus("Upload a report or paste report text before saving.");
+    setReportStatus("Upload a report/image or enter notes before saving.");
     return;
   }
-  setReportStatus("Saving diagnostic report.");
+  setReportStatus("Saving report/image.");
   try {
     const upload = await uploadDiagnosticReportFile(record);
     if (upload) {
@@ -272,7 +278,7 @@ async function applyDiagnosticReport() {
   writeReports([record, ...savedReports().filter((item) => item.id !== record.id)]);
   updateInitialWithReport(record);
   renderReportList();
-  setReportStatus(window.ClinicServer ? "Diagnostic report saved to the clinic server." : "Diagnostic report saved to this browser.");
+  setReportStatus(window.ClinicServer ? "Report/image saved to the clinic server." : "Report/image saved to this browser.");
 }
 
 function renderReportList() {
@@ -283,7 +289,7 @@ function renderReportList() {
     .filter((record) => patientKey(record.patientName) === patient)
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
   if (!reports.length) {
-    mount.innerHTML = "<p>No diagnostic reports saved for this patient.</p>";
+    mount.innerHTML = "<p>No reports or images saved for this patient.</p>";
     return;
   }
   reports.forEach((record) => {
@@ -296,13 +302,15 @@ function renderReportList() {
   });
 }
 
-$("#extractReport").addEventListener("click", extractDiagnosticReport);
-$("#applyReport").addEventListener("click", applyDiagnosticReport);
-["reportType", "reportDate", "reportBodyArea", "reportText"].forEach((id) => {
-  document.getElementById(id).addEventListener("input", renderReportList);
-  document.getElementById(id).addEventListener("change", renderReportList);
-});
+if (requireSelectedPatient()) {
+  $("#extractReport").addEventListener("click", extractDiagnosticReport);
+  $("#applyReport").addEventListener("click", applyDiagnosticReport);
+  ["reportType", "reportDate", "reportBodyArea", "reportText"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", renderReportList);
+    document.getElementById(id).addEventListener("change", renderReportList);
+  });
 
-renderPatientHeader();
-updateNavLinks();
-renderReportList();
+  renderPatientHeader();
+  updateNavLinks();
+  renderReportList();
+}

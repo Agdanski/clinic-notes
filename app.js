@@ -44,6 +44,7 @@ const state = {
   completedAt: "",
   importantNotesCarriedFromSoap: false,
   profileImportantNotesApplied: false,
+  profileScheduleApplied: false,
   profileSubjectiveDefaultsApplied: false,
   autosaveReady: false
 };
@@ -1398,6 +1399,7 @@ function loadNote(note) {
   state.completedAt = note.completedAt || "";
   state.importantNotesCarriedFromSoap = true;
   state.profileImportantNotesApplied = false;
+  state.profileScheduleApplied = true;
   state.profileSubjectiveDefaultsApplied = false;
   renderAll();
   setStatus("Draft loaded.");
@@ -1463,8 +1465,9 @@ function applyPatientProfile() {
   if (profile.contraindications !== undefined && contraindications.value !== profile.contraindications) {
     contraindications.value = profile.contraindications || "";
   }
-  if (profile.schedule && state.single.schedule === patientDefaults.schedule) {
+  if (profile.schedule && !state.profileScheduleApplied && state.single.schedule === patientDefaults.schedule) {
     state.single.schedule = profile.schedule;
+    state.profileScheduleApplied = true;
   }
   if (Array.isArray(profile.subluxations)) {
     patientDefaults.initialLevels = profile.subluxations;
@@ -1794,7 +1797,10 @@ function prepareNextVisitFromCompletedDrafts(matchingDrafts) {
   $("#reExamAt").value = latest.nextReExamAt || latest.reExamAt || $("#reExamAt").value || patientDefaults.reExamEvery;
   $("#importantNotes").value = filterProfileAlertNotes(latest.importantNotes || "");
   state.importantNotesCarriedFromSoap = true;
-  if (latest.single?.schedule) state.single.schedule = latest.single.schedule;
+  if (latest.single?.schedule) {
+    state.single.schedule = latest.single.schedule;
+    state.profileScheduleApplied = true;
+  }
 }
 
 function noteDateLabel(draft) {
@@ -2072,6 +2078,7 @@ function resetNote() {
   $("#importantNotes").value = filterProfileAlertNotes(carryForward?.importantNotes || "");
   state.importantNotesCarriedFromSoap = Boolean(carryForward);
   state.profileImportantNotesApplied = false;
+  state.profileScheduleApplied = Boolean(carriedFrequency?.single?.schedule);
   state.selected = {};
   state.sided = {};
   state.severity = {};
